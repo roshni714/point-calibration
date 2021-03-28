@@ -5,7 +5,7 @@ from losses import GaussianLaplaceMixtureNLL
 from distributions import GaussianLaplaceMixtureDistribution
 
 class GaussianLaplaceMixtureNLLModel(LightningModule):
-    def __init__(self, input_size, y_scale, learning_rate):
+    def __init__(self, input_size, y_scale):
         super().__init__()
         torch.set_default_tensor_type(torch.DoubleTensor)
         self.layers = torch.nn.Sequential(torch.nn.Linear(input_size, 100),
@@ -31,7 +31,7 @@ class GaussianLaplaceMixtureNLLModel(LightningModule):
         return {"loss": l, "log": tensorboard_logs}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-2)
         return optimizer
 
     def validation_step(self, batch, batch_idx):

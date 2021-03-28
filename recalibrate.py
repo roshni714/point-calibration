@@ -32,7 +32,7 @@ def write_result(results_file, result):
 @argh.arg("--epochs", default=500)
 @argh.arg("--n_bins", default=20)
 
-def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", model_size="big", tradeoff=1.0, posthoc_recalibration=None, train_frac=1.0, discretization=200, num_layers=2, n_dim=100, epochs=500, n_bins=20):
+def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", posthoc_recalibration=None, train_frac=1.0, num_layers=2, n_dim=100, epochs=500, n_bins=20):
     batch_size = None
     if dataset == "credit":
         train, val, test, in_size, output_size, y_scale = get_credit_regression_dataloader(split_seed=seed, batch_size=batch_size)
@@ -43,6 +43,10 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
             dataset, split_seed=seed, test_fraction=0.3, batch_size=None, train_frac=train_frac)
 
     loss_name = loss
+    if loss_name == "gaussian_nll":
+        model_class = GaussianNLLModel
+    else:
+        model_class = GaussianLaplaceMixtureNLLModel
     model_path = "models/{}_{}_{}_{}_{}_{}_seed_{}.ckpt".format(dataset, loss, float(tradeoff), seed, "None", discretization, seed)
 
     loss = ComboLoss(loss_name, tradeoff=tradeoff, discretization=50)
