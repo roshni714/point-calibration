@@ -7,10 +7,11 @@ class GaussianNLL:
         self.name = "gaussian_nll"
 
     def __call__(self, y, mu, var):
+        nll = 0
         sigma = torch.sqrt(var)
         comp = D.Normal(mu, sigma)
         log_prob = comp.log_prob(y)
-        nll = -log_prob
+        nll += -log_prob
         return torch.mean(nll)
 
 class GaussianLaplaceMixtureNLL:
@@ -18,11 +19,13 @@ class GaussianLaplaceMixtureNLL:
         self.name = "gaussian_laplace_mixture_nll"
 
     def __call__(self, y, mu, var, loc, scale, weight):
-        gaussian_likelihood = (1/torch.sqrt(2 * math.pi * var)) * torch.exp(- 0.5 * torch.pow(y-mu, 2)/var) * weight
+        gaussian_likelihood = (1/torch.sqrt(2 * math.pi * var)) * torch.exp(- 0.5 * torch.pow(y-mu, 2)/var) * weight 
         laplace_likelihood = (1/(2 * scale)) * torch.exp(-torch.abs(y - loc)/scale) * (1 - weight)
-        nll = -torch.log(torch.clamp(gaussian_likelihood + laplace_likelihood, min=1e-20))
+        likelihood = laplace_likelihood + gaussian_likelihood
+        likelihood = likelihood.clamp(min=1e-20)
+        nll = - torch.log(likelihood)
         return torch.mean(nll)
-
+ 
 class PointCalibrationLoss:
     def __init__(self, discretization):
         self.name = "pointwise_calibration_loss"

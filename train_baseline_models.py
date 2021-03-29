@@ -25,13 +25,6 @@ def objective(dataset, loss, seed, epochs, train_frac):
         save_top_k=1,
         mode="min",
     )
-    early_stop_callback = callbacks.early_stopping.EarlyStopping(
-       monitor='val_loss',
-       min_delta=0.00,
-       patience=10,
-       verbose=True,
-       mode='min'
-    )
 
     logger = TensorBoardLogger(
         save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, loss, seed)
@@ -45,11 +38,10 @@ def objective(dataset, loss, seed, epochs, train_frac):
     model = module(input_size=in_size[0], y_scale=y_scale)
     trainer = Trainer(
         gpus=1,
-        callbacks=[early_stop_callback],
         checkpoint_callback=checkpoint_callback,
         max_epochs=epochs,
         logger=logger,
-        check_val_every_n_epoch=5,
+        check_val_every_n_epoch=1,
         log_every_n_steps=1
     )
     trainer.fit(model, train_dataloader=train, val_dataloaders=val)

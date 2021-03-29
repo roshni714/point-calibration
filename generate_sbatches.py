@@ -23,8 +23,8 @@ echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
 
 OUTPUT_PATH="/atlas/u/rsahoo/point-calibration/slurm"
 def generate_baseline_models():
-    datasets = ["crime"]
-    seeds=[0]
+    datasets = ["kin8nm", "naval", "protein", "satellite"]
+    seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
 
     for dataset in datasets:
@@ -35,7 +35,7 @@ def generate_baseline_models():
                 base_cmd = 'python /atlas/u/rsahoo/point-calibration/train_baseline_models.py main '
                 with open(script_fn, 'w') as f:
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                    new_cmd = base_cmd + "--seed {} --loss {} --save baseline_{} --epochs 100 --dataset {}".format(seed, loss, loss, dataset)
+                    new_cmd = base_cmd + "--seed {} --loss {} --save baseline --epochs 100 --dataset {}".format(seed, loss,  dataset)
                     print(new_cmd, file=f)
                     print('sleep 1', file=f)
 def evaluate(dataset):

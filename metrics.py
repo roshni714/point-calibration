@@ -30,14 +30,15 @@ class Metrics:
         return self.dist.dist_std.mean()
  
     def point_calibration_error(self, min_bin=10, discretization=20):
-        y_sorted = torch.sort(self.y)[0]
+        y_sorted = torch.sort(self.y.flatten())[0]
         n_bins = discretization
         n_y_bins = 50
         sampled_y0 = torch.FloatTensor(n_y_bins).uniform_(torch.min(self.y), torch.max(self.y))
         sampled_alphas = torch.linspace(0, 1, n_bins)
         right_alphas = sampled_alphas[1:].reshape(-1, 1).flatten()
         left_alphas = sampled_alphas[:-1].reshape(-1, 1).flatten()
-        cdf_vals = self.ft_yt
+ 
+        cdf_vals = self.ft_yt.flatten()
         total_err = 0.
         count = 0
         for k in range(n_y_bins):
@@ -67,7 +68,7 @@ class Metrics:
         count = 0
         pce_mean = 0
         bin_size = int(self.y.shape[0]/discretization)
-        cdf_vals = self.ft_yt
+        cdf_vals = self.ft_yt.flatten()
         for i in range(n_y_bins):
             if "Composition" in self.dist.__class__.__name__:
                 threshold_vals = self.dist.cdf(thresholds[[i]].to(self.dist.f.mean.get_device()) ).flatten()
@@ -81,9 +82,10 @@ class Metrics:
                 else:
                     selected_indices = sorted_indices[(x) * bin_size:]
                 selected_cdf = cdf_vals[selected_indices]
-                pce_mean +=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[0])).mean()
+                pce_mean +=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[0])).mean() #*selected_cdf.shape[0]/cdf_vals.shape[0]
                 count += 1
         return pce_mean/count
+
 
     def rmse(self):
         mse_loss = torch.nn.MSELoss(reduction="mean")
@@ -91,7 +93,7 @@ class Metrics:
         return rmse
 
     def decision_loss(self):
-        loss = simulate_decision_making(self.decision_makers, self.dist, self.y) 
+        loss = simulate_decision_making(self.decision_makers, self.dist, self.y.flatten()) # self.point_recal, self.point_recal_params)
         return loss 
 
     def get_metrics(self, decision_making=False):

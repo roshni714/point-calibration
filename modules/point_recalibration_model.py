@@ -6,7 +6,7 @@ from losses import PointCalibrationLoss
 class PointRecalibrationModel(LightningModule):
 
     def __init__(self, datasets, n_in=3, num_layers=1, n_dim=100, n_bins=20):
-        self.y_train, self.train_dist, self.y_val, self.val_dist, self.y_test, self.test_dist = datasets 
+        self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets 
         self.sigmoid_flow = SigmoidFlowND(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
         self.loss = PointCalibrationLoss(discretization=n_bins)
 
