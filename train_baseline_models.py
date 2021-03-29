@@ -1,5 +1,5 @@
 from pytorch_lightning import Trainer, callbacks
-from modules import GaussianNLLModel
+from modules import GaussianNLLModel, GaussianLaplaceMixtureNLLModel
 from data_loaders import get_uci_dataloaders, get_satellite_dataloaders
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
@@ -20,7 +20,7 @@ def objective(dataset, loss, seed, epochs, train_frac):
     train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac)
 
     checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
-        "models/{}_{}_seed_{}/".format(dataset, method_name, seed),
+        "models/{}_{}_seed_{}/".format(dataset, loss, seed),
         monitor="val_loss",
         save_top_k=1,
         mode="min",
@@ -34,7 +34,7 @@ def objective(dataset, loss, seed, epochs, train_frac):
     )
 
     logger = TensorBoardLogger(
-        save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, method_name, seed)
+        save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, loss, seed)
     )
 
     if loss == "gaussian_nll":
@@ -45,7 +45,7 @@ def objective(dataset, loss, seed, epochs, train_frac):
     model = module(input_size=in_size[0], y_scale=y_scale)
     trainer = Trainer(
         gpus=1,
-        callbacks=[early_stop_callback]
+        callbacks=[early_stop_callback],
         checkpoint_callback=checkpoint_callback,
         max_epochs=epochs,
         logger=logger,
@@ -71,11 +71,15 @@ def objective(dataset, loss, seed, epochs, train_frac):
 #Epochs
 @argh.arg("--epochs", default=40)
 
-def main(dataset="crime", seed=0, save="baseline_experiments", loss="gaussian_nll", epochs=40):
+def main(dataset="crime", seed=0, save="baseline_experiments", loss="gaussian_nll", epochs=40, train_frac=1.0):
     model = objective(dataset, loss=loss,  seed=seed, epochs=epochs, train_frac=train_frac)
-    report_baseline_results(model)
+    report_baseline_results(model, dataset, train_frac, loss, seed, save)
 
 
+if __name__ == "__main__":
+    _parser = argh.ArghParser()
+    _parser.add_commands([main])
+    _parser.dispatch()
 
 
 

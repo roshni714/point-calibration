@@ -1,4 +1,5 @@
 import csv
+import os
 
 def write_result(results_file, result):
     """Writes results to a csv file."""
@@ -9,7 +10,7 @@ def write_result(results_file, result):
             dict_writer.writeheader()
         dict_writer.writerow(result)
 
-def report_baseline_results(model, dataset, loss_name, seed):
+def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
     result = {"dataset":dataset,
               "rmse": model.rmse,
               "loss": loss_name,
@@ -35,7 +36,7 @@ def report_baseline_results(model, dataset, loss_name, seed):
     all_y0 = getattr(model, "all_y0", [])
     all_c = getattr(model, "all_c", [])
 
-    decision_making_results_file = "results/" + save + "_{}_{}_{}_decision.csv".format(loss_name, seed)
+    decision_making_results_file = "results/" + save + "_decision_{}_{}_{}.csv".format(dataset, loss_name, seed)
     for i in range(len(all_err)):
         decision_making_dic = {}
         decision_making_dic["y0"] = all_y0[i].item()

@@ -34,7 +34,7 @@ class DecisionMaker():
         else:
             cdf_vals = dist.cdf( torch.Tensor([self.y0]))
 
-        term1 = (torch.mean(((y >= self.y0) & (cdf_vals >= alpha)).float()) * self.c_10 
+        term1 = (torch.mean(((y >= self.y0) & (cdf_vals >= alpha)).float())) * self.c_10 
         term2 = (torch.mean(((y < self.y0) & (cdf_vals < alpha)).float())) * self.c_01 
 
         return term1 + term2

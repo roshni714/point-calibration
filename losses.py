@@ -1,5 +1,6 @@
 import torch
 import torch.distributions as D
+import math
 
 class GaussianNLL:
     def __init__(self):
@@ -19,7 +20,7 @@ class GaussianLaplaceMixtureNLL:
     def __call__(self, y, mu, var, loc, scale, weight):
         gaussian_likelihood = (1/torch.sqrt(2 * math.pi * var)) * torch.exp(- 0.5 * torch.pow(y-mu, 2)/var) * weight
         laplace_likelihood = (1/(2 * scale)) * torch.exp(-torch.abs(y - loc)/scale) * (1 - weight)
-        nll = -torch.log(gaussian_likelihood + laplace_likelihood)
+        nll = -torch.log(torch.clamp(gaussian_likelihood + laplace_likelihood, min=1e-20))
         return torch.mean(nll)
 
 class PointCalibrationLoss:

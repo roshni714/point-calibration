@@ -1,5 +1,6 @@
 import torch
-from composition import CompositionDist
+from pytorch_lightning.core.lightning import LightningModule
+#from composition import CompositionDist
 from losses import PointCalibrationLoss
 
 class PointRecalibrationModel(LightningModule):

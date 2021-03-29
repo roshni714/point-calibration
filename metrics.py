@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import math
 from decision_making import simulate_decision_making, DecisionMaker
-from distributions import MixtureDistribution, FlexibleDistribution, GaussianLaplaceMixtureDistribution
 from scipy.integrate import simps
 import torch.distributions as D
 torch.manual_seed(0)
