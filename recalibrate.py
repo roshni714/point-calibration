@@ -42,14 +42,14 @@ def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=Fal
     test_dist, y_test  = dataset_dist(test)
     return train_dist, y_train, val_dist, y_val, test_dist, y_test 
 
-def train_recalibration_model(model, dataset, loss, seed, epochs, actual_datasets = None):
+def train_recalibration_model(model, epochs, logname=None, actual_datasets = None):
 
     if "Point" in model.__class__.__name__:
         logger = TensorBoardLogger(
-            save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, loss, seed)
+            save_dir="runs", name="logs/{}".format(logname)
         )
         checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
-            "recalibration_models/{}_{}_seed_{}/".format(dataset, loss, seed),
+            "recalibration_models/{}/".format(logname),
             monitor="val_loss",
             save_top_k=1,
             mode="min",
@@ -59,7 +59,7 @@ def train_recalibration_model(model, dataset, loss, seed, epochs, actual_dataset
         trainer = Trainer(
            gpus=1,
            checkpoint_callback=checkpoint_callback,
-           max_epochs=200,
+           max_epochs=epochs,
            logger=logger,
            check_val_every_n_epoch=1,
            log_every_n_steps=1
@@ -105,9 +105,7 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
     print(model_path),
 
     if "point" in posthoc_recalibration:
-        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins, "save_path": "recalibration_models/{}_{}_sigmoid_{}layers_{}dim_{}bins_{}epochs_{}.ckpt".format(dataset, loss, num_layers, n_dim, n_bins, epochs, seed) }
-#        if "sigmoid_average" == posthoc_recalibration:
-#            recalibration_parameters["n_bins"] = 2
+        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins} 
     elif "distribution" in posthoc_recalibration:
         recalibration_parameters = {"n_bins": n_bins}
     else:
@@ -115,21 +113,22 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
 
     model = model_class.load_from_checkpoint(model_path, input_size=in_size[0], y_scale=y_scale)
 
-    if posthoc_recalibration == "point": 
+    if posthoc_recalibration == "point":
+        logname = "{}_{}_sigmoid_{}layers_{}dim_{}bins_{}epochs_{}".format(dataset, loss, num_layers, n_dim, n_bins, epochs, seed)
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=True)
         del model
         recalibration_model = PointRecalibrationModel(dist_datasets, n_in=n_in, n_layers=num_layers, n_dim=n_dim, n_bins=n_bins, y_scale=y_scale)
-        recalibration_model = train_recalibration_model(recalibration_model, dataset, loss, seed, epochs, actual_datasets=(train, val, test))
+        recalibration_model = train_recalibration_model(recalibration_model, epochs, logname=logname, actual_datasets=(train, val, test))
     elif posthoc_recalibration == "average":
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=False)
         del model
         recalibration_model = AverageRecalibrationModel(dist_datasets, y_scale=y_scale)
-        recalibration_model = train_recalibration_model(recalibration_model, dataset, loss, seed, 1)
+        recalibration_model = train_recalibration_model(recalibration_model, 1, logname=None, actual_datasets=None)
     elif posthoc_recalibration == "distribution":
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=False)
         del model
         recalibration_model = DistributionRecalibrationModel(dist_datasets, y_scale=y_scale, n_bins=n_bins) 
-        recalibration_model = train_recalibration_model(recalibration_model, dataset, loss, seed, 1)
+        recalibration_model = train_recalibration_model(recalibration_model, 1)
 
     report_recalibration_results(recalibration_model, dataset, train_frac, loss, seed, posthoc_recalibration, recalibration_parameters, save)
  

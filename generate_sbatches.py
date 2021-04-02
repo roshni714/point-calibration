@@ -77,7 +77,6 @@ def evaluate_average_calibration_train_frac(dataset):
 def evaluate_distribution_calibration(dataset):
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
-#    n_bins = [10, 20, 50]
     n_bins = [5, 10, 20, 50]
     for seed in seeds:
         for loss in losses:
@@ -98,10 +97,9 @@ def evaluate_point_calibration(dataset):
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
     posthoc_recalibration = ["sigmoid_1D"]
     num_layers = [1]
-    n_dims = [100]
-    epochs = [1000]
-    n_bins = [5, 10, 20, 50]
-    train_frac = [0.01, 0.05, 0.1, 0.2, 0.4,1.0]
+    n_dims = [20]
+    epochs = [5000]
+    n_bins = [20]
 
     for seed in seeds:
         for posthoc_recal in posthoc_recalibration:
@@ -114,12 +112,12 @@ def evaluate_point_calibration(dataset):
                             base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
                             with open(script_fn, 'w') as f:
                                print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                               new_cmd = base_cmd + "--seed {} --loss {} --save point_recalibration --dataset {} --posthoc_recalibration point --epochs 1000 --num_layers {} --n_dim {} --n_bins {}".format(seed, loss, dataset, n_layer, n_dim, n_bin)
+                               new_cmd = base_cmd + "--seed {} --loss {} --save point_recalibration --dataset {} --posthoc_recalibration point --epochs 5000 --num_layers {} --n_dim {} --n_bins {}".format(seed, loss, dataset, n_layer, n_dim, n_bin)
                                print(new_cmd, file=f)
                                print('sleep 1', file=f)
 
 
 #generate_baseline_models()
 #evaluate_distribution_calibration("crime")
-for dataset in ["crime", "protein", "naval", "kin8nm", "satellite"]:
+for dataset in ["naval"]:
     evaluate_point_calibration(dataset)

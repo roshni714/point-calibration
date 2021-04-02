@@ -26,6 +26,8 @@ def objective(dataset, loss, seed, epochs, train_frac):
         mode="min",
     )
 
+    early_stop_callback = EarlyStopping(monitor='val_point_calibration_error_uniform_mass', min_delta=0.00, patience=10, verbose=False, mode='min')
+
     logger = TensorBoardLogger(
         save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, loss, seed)
     )
@@ -39,6 +41,7 @@ def objective(dataset, loss, seed, epochs, train_frac):
     trainer = Trainer(
         gpus=1,
         checkpoint_callback=checkpoint_callback,
+        callbacks = [early_stop_callback],
         max_epochs=epochs,
         logger=logger,
         check_val_every_n_epoch=1,

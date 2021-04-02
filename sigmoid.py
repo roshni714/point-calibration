@@ -160,7 +160,7 @@ class SigmoidFlowND(nn.Module):
             self.n_dim = n_dim
             self.n_in = n_in
             l = [SigmoidLayer(in_dim=n_in, out_dim=n_dim)]
-            for i in range(num_layers):
+            for i in range(num_layers-1):
                 l.append(SigmoidLayer(in_dim=n_dim, out_dim=n_dim))
             l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
             self.layers =  nn.ModuleList(l)
@@ -188,6 +188,74 @@ class SigmoidFlowND(nn.Module):
                 for i in range(len(extras)):
                     all_input.append(self.mlps[i](extras[i]))
                     mono_input = torch.cat(tuple(all_input), dim=1)
+#                res = self.mlp(extra.T.unsqueeze(1))
+#                res = res.reshape(res.shape[0], res.shape[2], res.shape[1])
+#                import pdb
+#                pdb.set_trace()
+#                mono_input = torch.cat((x, res), dim=1)
+            else:
+                mono_input = x 
+#            y0 = y0.reshape(-1, 1, 1)
+#            fy0 = fy0.reshape(-1, 1, 1) 
+            for layer in self.layers:
+                mono_input = layer(mono_input)
+            if torch.sum(torch.isnan(mono_input)) > 0:
+                import pdb
+                pdb.set_trace()
+            return mono_input
+
+        def cdf(self, x, extra=None):
+            if type(extra) == torch.Tensor:
+                assert x.shape[-1] == extra.shape[-1]
+            device = x.get_device()
+            in_shape = x.shape
+                
+            final = self.forward(x, extra).flatten()
+            bottom = self.forward(torch.zeros(x.shape).to(device), extra).flatten()
+            top = self.forward(torch.ones(x.shape).to(device), extra).flatten()
+            if torch.sum(torch.isnan(1/(top-bottom))) > 0:
+                import pdb
+                pdb.set_trace()
+ 
+            final = (final - bottom)/(top - bottom)
+            if torch.sum(torch.isnan(final)) > 0:
+                import pdb
+                pdb.set_trace()
+ 
+            out_shape = final.shape
+            assert in_shape == out_shape
+            return final
+
+
+class SigmoidFlowNDSingleMLP(nn.Module):
+        def __init__(self, n_in, num_layers, n_dim):
+            super(SigmoidFlowND, self).__init__()
+#            torch.set_default_tensor_type(torch.DoubleTensor)
+            self.num_layers = num_layers
+            self.n_dim = n_dim
+            self.n_in = n_in
+            l = [SigmoidLayer(in_dim=n_in, out_dim=n_dim)]
+            for i in range(num_layers-1):
+                l.append(SigmoidLayer(in_dim=n_dim, out_dim=n_dim))
+            l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
+            self.layers =  nn.ModuleList(l)
+            
+
+            mlps = []
+#            for i in range(n_in-1):
+#                mlps.append(torch.nn.Sequential(torch.nn.Linear(1, 10), torch.nn.ReLU(),torch.nn.Linear(10, 10), torch.nn.ReLU(), torch.nn.Linear(10, 1)))
+#            self.mlps = nn.ModuleList(mlps)
+            self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 10), torch.nn.ReLU(),torch.nn.Linear(10, 10), torch.nn.ReLU(), torch.nn.Linear(10, n_in-1))
+
+        def forward(self, x, extra=None):
+#            import pdb
+#            pdb.set_trace()
+            x = x.reshape(-1, 1, 1)
+
+            if type(extra) == torch.Tensor:
+                all_input = [x]
+                all_input.append(self.mlps[i](extra))
+                mono_input = torch.cat(tuple(all_input), dim=1)
 #                res = self.mlp(extra.T.unsqueeze(1))
 #                res = res.reshape(res.shape[0], res.shape[2], res.shape[1])
 #                import pdb

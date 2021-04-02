@@ -36,12 +36,13 @@ class PointCalibrationLoss:
         n_y_bins = 50
 #        with torch.no_grad():
         thresholds = torch.FloatTensor(50).uniform_(y.min(), y.max()).to(y.get_device())
-        vals = []
-        for k in range(n_y_bins):
-            sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
-            vals.append(sub)
-        threshold_vals = torch.cat(vals, dim=0)
-        sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
+        with torch.no_grad():
+            vals = []
+            for k in range(n_y_bins):
+                sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
+                vals.append(sub)
+            threshold_vals = torch.cat(vals, dim=0)
+            sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
         total = 0
         count = 0
         indices= (torch.linspace(0, 1, n_bins, device=y.get_device()) * (y.shape[0]-1)).type(torch.long)
