@@ -59,7 +59,7 @@ def train_recalibration_model(model, dataset, loss, seed, epochs, actual_dataset
         trainer = Trainer(
            gpus=1,
            checkpoint_callback=checkpoint_callback,
-           max_epochs=1,
+           max_epochs=200,
            logger=logger,
            check_val_every_n_epoch=1,
            log_every_n_steps=1
@@ -104,7 +104,7 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
     model_path = "models/{}_{}_seed_{}.ckpt".format(dataset, loss, seed)
     print(model_path),
 
-    if "sigmoid" in posthoc_recalibration:
+    if "point" in posthoc_recalibration:
         recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins, "save_path": "recalibration_models/{}_{}_sigmoid_{}layers_{}dim_{}bins_{}epochs_{}.ckpt".format(dataset, loss, num_layers, n_dim, n_bins, epochs, seed) }
 #        if "sigmoid_average" == posthoc_recalibration:
 #            recalibration_parameters["n_bins"] = 2

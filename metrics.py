@@ -14,13 +14,6 @@ class Metrics:
 
         self.y_scale = y_scale
         
-        sampled_y0 = torch.linspace(torch.min(y), torch.max(y), 50)
-        sampled_alpha = torch.linspace(0.05, 0.95, 50)
-        self.decision_makers = []
-        for i in range(len(sampled_alpha)):
-            for j in range(len(sampled_y0)):
-                self.decision_makers.append(DecisionMaker(sampled_alpha[i], sampled_y0[j], self.dist))
-
     def ece(self):
          ft_yt = torch.sort(self.ft_yt)[0]
          bins= np.linspace(0, 1, ft_yt.shape[0])
@@ -94,7 +87,14 @@ class Metrics:
         return rmse
 
     def decision_loss(self):
-        loss = simulate_decision_making(self.decision_makers, self.dist, self.y.flatten()) # self.point_recal, self.point_recal_params)
+        sampled_y0 = torch.linspace(torch.min(self.y), torch.max(self.y), 50)
+        sampled_alpha = torch.linspace(0.05, 0.95, 50)
+        decision_makers = []
+        for i in range(len(sampled_alpha)):
+            for j in range(len(sampled_y0)):
+                decision_makers.append(DecisionMaker(sampled_alpha[i], sampled_y0[j], self.dist))
+
+        loss = simulate_decision_making(decision_makers, self.dist, self.y.flatten()) # self.point_recal, self.point_recal_params)
         return loss 
 
     def get_metrics(self, decision_making=False):

@@ -121,5 +121,5 @@ def evaluate_point_calibration(dataset):
 
 #generate_baseline_models()
 #evaluate_distribution_calibration("crime")
-for dataset in ["crime"]:
+for dataset in ["crime", "protein", "naval", "kin8nm", "satellite"]:
     evaluate_point_calibration(dataset)

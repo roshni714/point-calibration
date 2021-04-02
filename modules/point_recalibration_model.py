@@ -69,5 +69,14 @@ class PointRecalibrationModel(LightningModule):
                 setattr(self, key, float(cal))
             else:
                 setattr(self, key, outputs[0][key])
+
+        # Record val PCE and decision loss gap
+        comp = CompositionDist(self.sigmoid_flow, self.val_dist.to(self.device))
+        l = self.loss(self.y_val.to(self.device), comp)
+        metrics = Metrics(comp, self.y_val.to(self.device), self.y_scale)
+        dic = metrics.get_metrics(decision_making=True)
+        setattr(self, "val_point_calibration_error", dic["point_calibration_error"].item())
+        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+
         return {"test_loss": avg_loss, "log": tensorboard_logs}
 
