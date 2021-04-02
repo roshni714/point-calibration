@@ -12,13 +12,14 @@ def write_result(results_file, result):
 
 def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
     result = {"dataset":dataset,
-              "rmse": model.rmse,
+              "rmse": getattr(model, "rmse", 0),
               "loss": loss_name,
               "ece": getattr(model, "ece", 0),
 #              "stddev": getattr(model, "sharpness", 0),
 #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
 #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
               "point_calibration_error": getattr(model, "point_calibration_error", 0),
+              "point_calibration_error_uniform_mass": getattr(model, "point_calibration_error_uniform_mass", 0),
 #              "false_positive_rate_error": getattr(model, "false_positive_rate_error", 0),
 #              "false_negative_rate_error": getattr(model, "false_negative_rate_error", 0),
               "true_vs_pred_loss": getattr(model, "true_vs_pred_loss", 0),
@@ -45,12 +46,10 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
         decision_making_dic["c"] = all_c[i].item()
         write_result(decision_making_results_file, decision_making_dic)
 
-def report_recalibration_results(model, dataset, train_frac, loss_name, seed, posthoc_recalibration, save):
-    
-    method_name = loss
-    results_file = "final_results/" + save + ".csv"
+def report_recalibration_results(model, dataset, train_frac, loss_name, seed, posthoc_recalibration, recalibration_parameters, save):
+    results_file = "results/" + save + ".csv"
     result = {"dataset":dataset,
-              "rmse": model.rmse,
+              "rmse": getattr(model, "rmse", 0),
               "loss": loss_name,
               "ece": getattr(model, "ece", 0),
 #              "stddev": getattr(model, "sharpness", 0),
@@ -58,6 +57,8 @@ def report_recalibration_results(model, dataset, train_frac, loss_name, seed, po
 #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
               "point_calibration_error": getattr(model, "point_calibration_error", 0),
               "point_calibration_error_uniform_mass": getattr(model, "point_calibration_error_uniform_mass", 0),
+              "val_point_calibration_error": getattr(model, "val_point_calibration_error", 0),
+              "val_point_calibration_error_uniform_mass": getattr(model, "val_point_calibration_error_uniform_mass", 0),
 #              "false_positive_rate_error": getattr(model, "false_positive_rate_error", 0),
 #              "false_negative_rate_error": getattr(model, "false_negative_rate_error", 0),
               "true_vs_pred_loss": getattr(model, "true_vs_pred_loss", 0),
@@ -77,10 +78,7 @@ def report_recalibration_results(model, dataset, train_frac, loss_name, seed, po
     all_y0 = getattr(model, "all_y0", [])
     all_c = getattr(model, "all_c", [])
 
-    if posthoc_recalibration:
-        decision_making_results_file = "results/" + save + "_{}_{}_{}_decision.csv".format(loss_name, posthoc_recalibration, seed)
-    else:
-        decision_making_results_file = "results/" + save + "_{}_{}_decision.csv".format(loss_name, seed)
+    decision_making_results_file = "results/" + save + "_decision_{}_{}_{}_{}.csv".format(dataset, loss_name, posthoc_recalibration, seed)
 
     for i in range(len(all_err)):
         decision_making_dic = {}

@@ -30,7 +30,7 @@ class GaussianNLLModel(LightningModule):
         return {"loss": l, "log": tensorboard_logs}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-2)
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
     def validation_step(self, batch, batch_idx):

@@ -9,8 +9,9 @@ torch.manual_seed(0)
 class Metrics:
     def __init__(self, dist, y, y_scale):
         self.y = y.flatten()
+        self.ft_yt = dist.cdf(self.y).detach().cpu()
         self.dist = dist
-        self.ft_yt = self.dist.cdf(self.y).detach().cpu()
+
         self.y_scale = y_scale
         
         sampled_y0 = torch.linspace(torch.min(y), torch.max(y), 50)
@@ -18,7 +19,7 @@ class Metrics:
         self.decision_makers = []
         for i in range(len(sampled_alpha)):
             for j in range(len(sampled_y0)):
-                self.decision_makers.append(DecisionMaker(sampled_alpha[i], sampled_y0[j]))
+                self.decision_makers.append(DecisionMaker(sampled_alpha[i], sampled_y0[j], self.dist))
 
     def ece(self):
          ft_yt = torch.sort(self.ft_yt)[0]
@@ -27,7 +28,7 @@ class Metrics:
          return torch.tensor(res)
 
     def sharpness(self):
-        return self.dist.dist_std.mean()
+        return self.dist.dist_std.mean().detach().cpu()
  
     def point_calibration_error(self, min_bin=10, discretization=20):
         y_sorted = torch.sort(self.y.flatten())[0]
@@ -43,7 +44,7 @@ class Metrics:
         count = 0
         for k in range(n_y_bins):
             if "Composition" in self.dist.__class__.__name__:
-                threshold_vals = self.dist.cdf( sampled_y0[k].to(self.dist.f.mean.get_device())).detach().cpu().reshape(1, -1, 1)
+                threshold_vals = self.dist.cdf( sampled_y0[k].to(self.y.get_device())).detach().cpu().reshape(1, -1, 1)
             else:
                 threshold_vals = self.dist.cdf( sampled_y0[k].view(-1, 1)).reshape(1, -1, 1)
             selected_indices = (threshold_vals < right_alphas) & (threshold_vals  >= left_alphas) # 2 x 2100 x 199
@@ -71,7 +72,7 @@ class Metrics:
         cdf_vals = self.ft_yt.flatten()
         for i in range(n_y_bins):
             if "Composition" in self.dist.__class__.__name__:
-                threshold_vals = self.dist.cdf(thresholds[[i]].to(self.dist.f.mean.get_device()) ).flatten()
+                threshold_vals = self.dist.cdf(thresholds[[i]].to(self.y.get_device()) ).flatten()
             else:
                 threshold_vals = self.dist.cdf(thresholds[i].view(-1, 1)).flatten()
        
@@ -89,7 +90,7 @@ class Metrics:
 
     def rmse(self):
         mse_loss = torch.nn.MSELoss(reduction="mean")
-        rmse = torch.sqrt(mse_loss(self.y, self.dist.dist_mean)) * self.y_scale
+        rmse = torch.sqrt(mse_loss(self.y, self.dist.dist_mean())) * self.y_scale
         return rmse
 
     def decision_loss(self):
@@ -110,7 +111,7 @@ class Metrics:
         return {"ece": self.ece(),
                 "point_calibration_error_uniform_mass": uniform_mass_pce, 
                 "point_calibration_error": self.point_calibration_error(),
-                "rmse": self.rmse(),
+#                "rmse": self.rmse(),
                 "true_vs_pred_loss": decision_err, 
                 "decision_loss": decision_loss,
                 "all_err": all_err, 

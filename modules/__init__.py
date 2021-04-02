@@ -1,3 +1,5 @@
 from modules.gaussian_nll_model import GaussianNLLModel
 from modules.gaussian_laplace_mixture_nll_model import GaussianLaplaceMixtureNLLModel
 from modules.point_recalibration_model import PointRecalibrationModel
+from modules.average_recalibration_model import AverageRecalibrationModel
+from modules.distribution_recalibration_model import DistributionRecalibrationModel

@@ -8,7 +8,7 @@ import csv
 from tqdm import tqdm
 
 class DecisionMaker():
-    def __init__(self, c, y0):
+    def __init__(self, c, y0, dist):
         self.c_00 = 0
         self.c_11 = 0
         x= 1/c - 1
@@ -17,43 +17,39 @@ class DecisionMaker():
         self.c_10 = (y/(x+y)) * 10
         self.y0 = y0
         self.c = c
-
-    def predicted_loss(self, dist, alpha):
         if "Composition" in dist.__class__.__name__:
-            cdf_vals = dist.cdf( torch.Tensor([self.y0]).to(dist.f.mean.get_device())).detach().cpu()
+            self.cdf_vals = dist.cdf( torch.Tensor([self.y0]).to(dist.f.dist_mean.get_device())).detach().cpu()
         else:
-            cdf_vals = dist.cdf( torch.Tensor([self.y0]))
-        term1 = torch.mean((cdf_vals <= alpha) *  ( cdf_vals)) * self.c_01
-        term2 = torch.mean((cdf_vals > alpha) *  (1-cdf_vals)) * self.c_10
+            self.cdf_vals = dist.cdf( torch.Tensor([self.y0]))
+
+
+    def predicted_loss(self, alpha):
+        term1 = torch.mean((self.cdf_vals <= alpha) *  (self.cdf_vals)) * self.c_01
+        term2 = torch.mean((self.cdf_vals > alpha) *  (1-self.cdf_vals)) * self.c_10
 
         return term1 + term2
 
-    def true_loss(self, dist, y, alpha):
-        if "Composition" in dist.__class__.__name__:
-            cdf_vals = dist.cdf( torch.Tensor([self.y0]).to(dist.f.mean.get_device())).detach().cpu()
-        else:
-            cdf_vals = dist.cdf( torch.Tensor([self.y0]))
-
-        term1 = (torch.mean(((y >= self.y0) & (cdf_vals >= alpha)).float())) * self.c_10 
-        term2 = (torch.mean(((y < self.y0) & (cdf_vals < alpha)).float())) * self.c_01 
+    def true_loss(self, y, alpha):
+        term1 = (torch.mean(((y >= self.y0) & (self.cdf_vals >= alpha)).float())) * self.c_10 
+        term2 = (torch.mean(((y < self.y0) & (self.cdf_vals < alpha)).float())) * self.c_01 
 
         return term1 + term2
 
-    def predict_min_loss(self, dist):
+    def predict_min_loss(self):
          bayes_opt = self.c
-         loss = self.predicted_loss(dist, bayes_opt)
+         loss = self.predicted_loss(bayes_opt)
          return loss, bayes_opt
 
-    def compute_decision_loss(self, dist, y):
-        true_loss_pred_alpha = self.true_loss(dist, y.detach().cpu(), self.c)
+    def compute_decision_loss(self, y):
+        true_loss_pred_alpha = self.true_loss(y.detach().cpu(), self.c)
         return  true_loss_pred_alpha
 
-    def compute_decision_gap(self, dist, y):
+    def compute_decision_gap(self, y):
         gap = 0
         actions = torch.linspace(0.05, 0.95, 50)
         for i in range(len(actions)):
-            pred_loss = self.predicted_loss(dist, actions[i])
-            true_loss = self.true_loss(dist, y.detach().cpu(), actions[i])
+            pred_loss = self.predicted_loss(actions[i])
+            true_loss = self.true_loss(y.detach().cpu(), actions[i])
             gap += torch.abs(pred_loss - true_loss)
         return gap/len(actions)
 
@@ -66,8 +62,8 @@ def simulate_decision_making(decision_makers, dist,  y):
     all_y0 = []
     all_c = []
     for i in range(len(decision_makers)):
-        loss = decision_makers[i].compute_decision_loss(dist, y.flatten())
-        err = decision_makers[i].compute_decision_gap(dist, y.flatten())
+        loss = decision_makers[i].compute_decision_loss(y.flatten())
+        err = decision_makers[i].compute_decision_gap(y.flatten())
         total_loss += loss
         total_err += err
         all_loss.append(loss)

@@ -21,9 +21,10 @@ echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
 
 # constants for commands
 
-OUTPUT_PATH="/atlas/u/rsahoo/point-calibration/slurm"
+OUTPUT_PATH="/atlas/u/rsahoo/point-calibration/slurm5"
+
 def generate_baseline_models():
-    datasets = ["kin8nm", "naval", "protein", "satellite"]
+    datasets = ["crime", "kin8nm", "naval", "protein", "satellite"]
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
 
@@ -38,81 +39,87 @@ def generate_baseline_models():
                     new_cmd = base_cmd + "--seed {} --loss {} --save baseline --epochs 100 --dataset {}".format(seed, loss,  dataset)
                     print(new_cmd, file=f)
                     print('sleep 1', file=f)
-def evaluate(dataset):
+
+def evaluate_average_calibration(dataset):
     seeds=[0, 1, 2, 3, 4, 5]
-    losses=["gaussian_laplace_mixture_nll"]
-    params=[0] 
-    discretizations = [0]
-#    train_fractions = [0.01, 0.05, 0.1, 0.2, 0.4,1.0]
-    n_bins = [20]
+    losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
 
-#    for disc in discretizations:
-#        for param in params:
-#            for seed in seeds:
-#                for loss in losses:
-#                    exp_id = 'feb11_benchmark_{}_{}_{}_{}_{}_{}'.format(dataset, loss, param, None, seed, disc)
-#                    script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
-#                    base_cmd = 'python /atlas/u/rsahoo/pointwise-calibration/evaluate.py main '
-#                    with open(script_fn, 'w') as f:
-#                        print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-#                        new_cmd = base_cmd + "--seed {} --loss {} --save {}_eval_old --dataset {} --tradeoff {} --model_size extra_small --discretization {}".format(seed, loss, dataset, dataset, param, disc)
-#                        print(new_cmd, file=f)
-#                        print('sleep 1', file=f)
-
-    posthoc_recalibration = ["distribution"]
-#    binning = [10, 20, 50, 100]
     for seed in seeds:
-        for n_bin in n_bins:
-            for posthoc_recal in posthoc_recalibration:
-                exp_id = 'feb11_benchmark_{}_{}_{}_{}_{}_{}'.format(dataset, "point_calibration_loss", 0.0, posthoc_recal, n_bin, seed)
+        for loss in losses:
+            exp_id = 'mar28_benchmark_{}_{}_{}_{}'.format(dataset, loss, "average", seed)
+            script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
+            base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
+            with open(script_fn, 'w') as f:
+                print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
+                new_cmd = base_cmd + "--seed {} --loss {} --save recalibration --dataset {} --posthoc_recalibration average".format(seed, loss, dataset)
+                print(new_cmd, file=f)
+                print('sleep 1', file=f)
+
+def evaluate_average_calibration_train_frac(dataset):
+    seeds=[0, 1, 2, 3, 4, 5]
+    losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
+    train_fracs = [0.01, 0.025, 0.05, 0.1, 0.2, 0.4, 0.8, 1.0]
+
+    for seed in seeds:
+        for loss in losses:
+            for train_frac in train_fracs:
+                exp_id = 'mar30_benchmark_{}_{}_{}_{}_{}'.format(dataset, loss, "average", train_frac, seed)
                 script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
-                base_cmd = 'python /atlas/u/rsahoo/pointwise-calibration/evaluate.py main '
+                base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
                 with open(script_fn, 'w') as f:
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                    new_cmd = base_cmd + "--seed {} --loss gaussian_laplace_mixture_nll --save {}_recalibration --dataset {} --tradeoff {} --posthoc_recalibration {} --discretization 0 --n_bins {}".format(seed, dataset,  dataset, 0.0, posthoc_recal, n_bin)
+                    new_cmd = base_cmd + "--seed {} --loss {} --save recalibration --dataset {} --posthoc_recalibration average --train_frac {}".format(seed, loss, dataset, train_frac)
                     print(new_cmd, file=f)
                     print('sleep 1', file=f)
 
 
-def evaluate_sigmoid(dataset):
+
+def evaluate_distribution_calibration(dataset):
     seeds=[0, 1, 2, 3, 4, 5]
-    losses=["point_calibration_loss"]
-    params=[0] 
-    discretizations = [0]
+    losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
+#    n_bins = [10, 20, 50]
+    n_bins = [5, 10, 20, 50]
+    for seed in seeds:
+        for loss in losses:
+            for n_bin in n_bins:
+                exp_id = 'apr1_benchmark_{}_{}_{}_{}_{}'.format(dataset, loss, "distribution", n_bin, seed)
+                script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
+                base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
+                with open(script_fn, 'w') as f:
+                    print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
+                    new_cmd = base_cmd + "--seed {} --loss {} --save distribution_recalibration --dataset {} --posthoc_recalibration distribution --n_bins {}".format(seed, loss, dataset, n_bin)
+                    print(new_cmd, file=f)
+                    print('sleep 1', file=f)
 
-#    for disc in discretizations:
-#        for param in params:
-#            for seed in seeds:
-#                for loss in losses:
-#                    exp_id = 'feb11_benchmark_{}_{}_{}_{}_{}_{}'.format(dataset, loss, param, None, seed, disc)
-#                    script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
-#                    base_cmd = 'python /atlas/u/rsahoo/pointwise-calibration/evaluate.py main '
-#                    with open(script_fn, 'w') as f:
-#                        print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-#                        new_cmd = base_cmd + "--seed {} --loss {} --save {}_eval_old --dataset {} --tradeoff {} --model_size extra_small --discretization {}".format(seed, loss, dataset, dataset, param, disc)
-#                        print(new_cmd, file=f)
-#                        print('sleep 1', file=f)
 
+
+def evaluate_point_calibration(dataset):
+    seeds=[0, 1, 2, 3, 4, 5]
+    losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
     posthoc_recalibration = ["sigmoid_1D"]
     num_layers = [1]
     n_dims = [100]
-    epochs = [20000]
-    n_bins = [10, 20, 50, 100]
+    epochs = [1000]
+    n_bins = [5, 10, 20, 50]
     train_frac = [0.01, 0.05, 0.1, 0.2, 0.4,1.0]
 
     for seed in seeds:
         for posthoc_recal in posthoc_recalibration:
-            for n_layer in num_layers:
-                for n_bin in n_bins:
-                    for n_dim in n_dims:
-                        exp_id = 'feb11_benchmark_{}_{}_{}_{}_{}_{}_{}_{}'.format(dataset, "point_calibration_loss", 0.0, posthoc_recal, seed, n_layer, n_dim, n_bin)
-                        script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
-                        base_cmd = 'python /atlas/u/rsahoo/pointwise-calibration/evaluate.py main '
-                        with open(script_fn, 'w') as f:
-                            print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                            new_cmd = base_cmd + "--seed {} --loss point_calibration_loss --save {}_sigmoid_separate_mlp --dataset {} --tradeoff {} --model_size extra_small --posthoc_recalibration {} --discretization 0 --epochs 20000 --num_layers {} --n_dim {} --n_bins {}".format(seed, dataset,  dataset, 0.0, posthoc_recal, n_layer, n_dim, n_bin)
-                            print(new_cmd, file=f)
-                            print('sleep 1', file=f)
+            for loss in losses:
+                for n_layer in num_layers:
+                    for n_bin in n_bins:
+                        for n_dim in n_dims:
+                            exp_id = 'apr1_benchmark_{}_{}_{}_{}_{}_{}'.format(dataset, loss, n_layer, n_dim, n_bin, seed)
+                            script_fn = os.path.join(OUTPUT_PATH, '{}.sh'.format(exp_id))
+                            base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
+                            with open(script_fn, 'w') as f:
+                               print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
+                               new_cmd = base_cmd + "--seed {} --loss {} --save point_recalibration --dataset {} --posthoc_recalibration point --epochs 1000 --num_layers {} --n_dim {} --n_bins {}".format(seed, loss, dataset, n_layer, n_dim, n_bin)
+                               print(new_cmd, file=f)
+                               print('sleep 1', file=f)
 
 
-generate_baseline_models()
+#generate_baseline_models()
+#evaluate_distribution_calibration("crime")
+for dataset in ["crime"]:
+    evaluate_point_calibration(dataset)
