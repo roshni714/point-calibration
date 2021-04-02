@@ -67,18 +67,14 @@ class GaussianDistribution:
 
     def to(self, device):
         self.gaussian_comp = D.Normal(self.gaussian_comp.mean.to(device), self.gaussian_comp.scale.to(device))
-        self.laplace_comp = D.Laplace(self.laplace_comp.mean.to(device), self.laplace_comp.scale.to(device)) 
         self.dist_mean = self.dist_mean.to(device)
         self.dist_std = self.dist_std.to(device)
-        self.weight = self.weight.to(device)
         return self
 
     def detach(self):
         self.gaussian_comp = D.Normal(self.gaussian_comp.loc.detach().cpu(), self.gaussian_comp.scale.detach().cpu())
-        self.laplace_comp = D.Laplace(self.laplace_comp.loc.detach().cpu(), self.laplace_comp.scale.detach().cpu()) 
         self.dist_mean = self.dist_mean.detach().cpu()
         self.dist_std = self.dist_std.detach().cpu()
-        self.weight = self.weight.detach().cpu()
         return self
 
 class FlexibleDistribution:
