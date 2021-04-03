@@ -50,7 +50,7 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets = Non
         )
         checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
             "recalibration_models/{}/".format(logname),
-            monitor="val_loss",
+            monitor="point_calibration_error_uniform_mass",
             save_top_k=1,
             mode="min",
         )
