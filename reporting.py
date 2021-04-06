@@ -66,7 +66,7 @@ def report_recalibration_results(model, dataset, train_frac, loss_name, seed, po
               "posthoc_recalibration": posthoc_recalibration,
               "train_frac": train_frac,
               "seed": seed}
-    for x in ["num_layers", "n_dim", "epochs", "n_bins"]:
+    for x in ["num_layers", "n_dim", "epochs", "n_bins", "flow_type"]:
         if recalibration_parameters and x in recalibration_parameters:
             result[x] = recalibration_parameters[x]
         else:

@@ -1,7 +1,7 @@
 import torch
 from metrics import Metrics
 from pytorch_lightning.core.lightning import LightningModule
-from sigmoid import SigmoidFlowND
+from sigmoid import SigmoidFlowND, SigmoidFlowNDSingleMLP, SigmoidFlowNDSingleMLPDropout, SigmoidFlowNDMonotonic
 from composition import CompositionDist
 from losses import PointCalibrationLoss
 import torch
@@ -9,12 +9,20 @@ import torch.nn as nn
 
 class PointRecalibrationModel(LightningModule):
 
-    def __init__(self, datasets, y_scale, n_in=3, n_layers=1, n_dim=100, n_bins=20):
+    def __init__(self, datasets, y_scale, n_in=3, n_layers=1, n_dim=100, n_bins=20, flow_type=None, learning_rate=1e-3):
         super().__init__()
         self.y_scale = y_scale
         self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets 
         self.loss = PointCalibrationLoss(discretization=n_bins)
-        self.sigmoid_flow = SigmoidFlowND(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
+        self.learning_rate = learning_rate
+        if flow_type== None:
+            self.sigmoid_flow = SigmoidFlowND(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
+        elif flow_type=="single_mlp":
+            self.sigmoid_flow = SigmoidFlowNDSingleMLP(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
+        elif flow_type=="single_mlp_dropout":
+            self.sigmoid_flow = SigmoidFlowNDSingleMLPDropout(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
+        elif flow_type=="no_mlp":
+            self.sigmoid_flow = SigmoidFlowNDMonotonic(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
 
     def training_step(self, batch, batch_idx):
         comp = CompositionDist(self.sigmoid_flow, self.train_dist.to(self.device))
@@ -23,7 +31,7 @@ class PointRecalibrationModel(LightningModule):
         return {"loss": l, "log": tensorboard_logs}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def validation_step(self, batch, batch_idx):
@@ -71,12 +79,13 @@ class PointRecalibrationModel(LightningModule):
                 setattr(self, key, outputs[0][key])
 
         # Record val PCE and decision loss gap
-        comp = CompositionDist(self.sigmoid_flow, self.val_dist.to(self.device))
-        l = self.loss(self.y_val.to(self.device), comp)
-        metrics = Metrics(comp, self.y_val.to(self.device), self.y_scale)
-        dic = metrics.get_metrics(decision_making=True)
-        setattr(self, "val_point_calibration_error", dic["point_calibration_error"].item())
-        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+        if self.val_dist:
+             comp = CompositionDist(self.sigmoid_flow, self.val_dist.to(self.device))
+             l = self.loss(self.y_val.to(self.device), comp)
+             metrics = Metrics(comp, self.y_val.to(self.device), self.y_scale)
+             dic = metrics.get_metrics(decision_making=True)
+             setattr(self, "val_point_calibration_error", dic["point_calibration_error"].item())
+             setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
 
         return {"test_loss": avg_loss, "log": tensorboard_logs}
 

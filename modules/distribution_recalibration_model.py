@@ -3,6 +3,7 @@ import itertools
 from sklearn.isotonic import IsotonicRegression
 from tqdm import tqdm
 import numpy as np
+import math
 from metrics import Metrics
 from distributions import FlexibleDistribution
 RANGE = [-10, 10]
@@ -26,6 +27,8 @@ class DistributionRecalibrationModel:
                     location = location[idx]
                 else:
                     location[idx] = val
+#        n_params = len(self.train_dist.params)
+#        n = max(1, math.ceil(math.log(self.n_bins)/math.log(n_params)))
         n = self.n_bins
         parameter_bins = []
         grid_shape = []

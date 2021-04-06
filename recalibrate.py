@@ -8,13 +8,14 @@ from distributions import GaussianDistribution, GaussianLaplaceMixtureDistributi
 import argh
 from reporting import report_recalibration_results
 
-def get_dataset(dataset, seed, train_frac):
+def get_dataset(dataset, seed, train_frac, combine_val_train):
     batch_size = None
     if dataset == "satellite":
-        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(split_seed=seed, batch_size=batch_size)
+        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(split_seed=seed, batch_size=batch_size, combine_val_train=combine_val_train)
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
-            dataset, split_seed=seed, test_fraction=0.3, batch_size=batch_size, train_frac=train_frac)
+            dataset, split_seed=seed, test_fraction=0.3, batch_size=batch_size, train_frac=train_frac, combine_val_train=combine_val_train)
+
     return train, val, test, in_size,  y_scale
 
 def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=False):
@@ -38,37 +39,59 @@ def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=Fal
         return dist, y 
 
     train_dist, y_train = dataset_dist(train)
-    val_dist, y_val = dataset_dist(val)
+    if val:
+        val_dist, y_val = dataset_dist(val)
+    else:
+        val_dist = None
+        y_val = None
     test_dist, y_test  = dataset_dist(test)
     return train_dist, y_train, val_dist, y_val, test_dist, y_test 
 
 def train_recalibration_model(model, epochs, logname=None, actual_datasets = None):
 
+    train, val, test = actual_datasets # hack so can use pytorch lightning for training
+
     if "Point" in model.__class__.__name__:
         logger = TensorBoardLogger(
             save_dir="runs", name="logs/{}".format(logname)
         )
-        checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
-            "recalibration_models/{}/".format(logname),
-            monitor="point_calibration_error_uniform_mass",
-            save_top_k=1,
-            mode="min",
-        )
-        train, val, test = actual_datasets # hack so can use pytorch lightning for training
+#        early_stop_callback = callbacks.early_stopping.EarlyStopping(monitor='point_calibration_error_uniform_mass', min_delta=0.00, patience=50, verbose=False, mode='min')
 
-        trainer = Trainer(
-           gpus=1,
-           checkpoint_callback=checkpoint_callback,
-           max_epochs=epochs,
-           logger=logger,
-           check_val_every_n_epoch=1,
-           log_every_n_steps=1
-        )
-        trainer.fit(model, train_dataloader=train, val_dataloaders=val)
+        if val:
+            checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
+                "recalibration_models/{}/".format(logname),
+                 monitor="point_calibration_error_uniform_mass",
+                 save_top_k=1,
+                 mode="min",
+            )
+
+            trainer = Trainer(
+            gpus=1,
+            checkpoint_callback=checkpoint_callback,
+#            callbacks = [early_stop_callback],
+            max_epochs=epochs,
+            logger=logger,
+            check_val_every_n_epoch=1,
+            log_every_n_steps=1)
+
+            trainer.fit(model, train_dataloader=train, val_dataloaders=val)
+
+        else:
+            trainer = Trainer(
+            gpus=1,
+#            checkpoint_callback=checkpoint_callback,
+#            callbacks = [early_stop_callback],
+            max_epochs=epochs,
+            logger=logger,
+            check_val_every_n_epoch=1,
+            log_every_n_steps=1)
+
+            trainer.fit(model, train_dataloader=train)
         trainer.test(test_dataloaders=test)
     else:
         model.training_step()
-        val_outputs = model.validation_step()
+        if val:
+            val_outputs = model.validation_step()
         test_outputs = model.testing_step()
         model.test_epoch_end([test_outputs]) 
     return model
@@ -82,16 +105,19 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets = Non
 @argh.arg("--save", default="protein_evaluation")
 @argh.arg("--posthoc_recalibration", default=None)
 @argh.arg("--train_frac", default=1.0)
+@argh.arg("--combine_val_train", default=False)
 
 ## Recalibration parameters
 @argh.arg("--num_layers", default=2)
 @argh.arg("--n_dim", default=100)
 @argh.arg("--epochs", default=500)
 @argh.arg("--n_bins", default=20)
+@argh.arg("--flow_type", default=None)
+@argh.arg("--learning_rate", default=1e-3)
 
+def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", posthoc_recalibration=None, train_frac=1.0, num_layers=2, n_dim=100, epochs=500, n_bins=20, flow_type=None, learning_rate=1e-3, combine_val_train = False):
 
-def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", posthoc_recalibration=None, train_frac=1.0, num_layers=2, n_dim=100, epochs=500, n_bins=20):
-    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac)
+    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, combine_val_train)
 
     if loss == "gaussian_nll":
         model_class = GaussianNLLModel
@@ -105,7 +131,7 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
     print(model_path),
 
     if "point" in posthoc_recalibration:
-        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins} 
+        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins, "flow_type": flow_type, "learning_rate": 1e-2} 
     elif "distribution" in posthoc_recalibration:
         recalibration_parameters = {"n_bins": n_bins}
     else:
@@ -114,21 +140,21 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
     model = model_class.load_from_checkpoint(model_path, input_size=in_size[0], y_scale=y_scale)
 
     if posthoc_recalibration == "point":
-        logname = "{}_{}_sigmoid_{}layers_{}dim_{}bins_{}epochs_{}".format(dataset, loss, num_layers, n_dim, n_bins, epochs, seed)
+        logname = "{}_{}_sigmoid_{}layers_{}_{}dim_{}bins_{}epochs_{}lr_{}".format(dataset, loss, num_layers, flow_type, n_dim, n_bins, epochs, learning_rate, seed)
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=True)
         del model
-        recalibration_model = PointRecalibrationModel(dist_datasets, n_in=n_in, n_layers=num_layers, n_dim=n_dim, n_bins=n_bins, y_scale=y_scale)
+        recalibration_model = PointRecalibrationModel(dist_datasets, n_in=n_in, n_layers=num_layers, n_dim=n_dim, n_bins=n_bins, flow_type=flow_type, y_scale=y_scale)
         recalibration_model = train_recalibration_model(recalibration_model, epochs, logname=logname, actual_datasets=(train, val, test))
     elif posthoc_recalibration == "average":
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=False)
         del model
         recalibration_model = AverageRecalibrationModel(dist_datasets, y_scale=y_scale)
-        recalibration_model = train_recalibration_model(recalibration_model, 1, logname=None, actual_datasets=None)
+        recalibration_model = train_recalibration_model(recalibration_model, 1, logname=None, actual_datasets=(train, val, test))
     elif posthoc_recalibration == "distribution":
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=False)
         del model
         recalibration_model = DistributionRecalibrationModel(dist_datasets, y_scale=y_scale, n_bins=n_bins) 
-        recalibration_model = train_recalibration_model(recalibration_model, 1)
+        recalibration_model = train_recalibration_model(recalibration_model, 1, logname=None, actual_datasets=(train, val, test))
 
     report_recalibration_results(recalibration_model, dataset, train_frac, loss, seed, posthoc_recalibration, recalibration_parameters, save)
  
