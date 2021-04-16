@@ -47,7 +47,6 @@ class GaussianLaplaceMixtureDistribution:
 
 
 class GaussianDistribution:
-
     def __init__(self, params):
         self.params = params
         mu, var = params

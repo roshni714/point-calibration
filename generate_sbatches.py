@@ -21,10 +21,10 @@ echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
 
 # constants for commands
 
-OUTPUT_PATH="/atlas/u/rsahoo/point-calibration/slurm_distribution"
+OUTPUT_PATH="/atlas/u/rsahoo/point-calibration/slurm_satellite"
 
 def generate_baseline_models():
-    datasets = ["crime", "kin8nm", "naval", "protein", "satellite"]
+    datasets = ["tanzania", "zimbabwe", "uganda", "malawi", "mozambique", "rwanda"]
 #    datasets = ["crime"]
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
@@ -52,7 +52,7 @@ def evaluate_average_calibration(dataset):
             base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
             with open(script_fn, 'w') as f:
                 print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                new_cmd = base_cmd + "--seed {} --loss {} --save recalibration --dataset {} --posthoc_recalibration average".format(seed, loss, dataset)
+                new_cmd = base_cmd + "--seed {} --loss {} --save recalibration_combine_val_train --combine_val_train --dataset {} --posthoc_recalibration average".format(seed, loss, dataset)
                 print(new_cmd, file=f)
                 print('sleep 1', file=f)
 
@@ -69,7 +69,7 @@ def evaluate_average_calibration_train_frac(dataset):
                 base_cmd = 'python /atlas/u/rsahoo/point-calibration/recalibrate.py main '
                 with open(script_fn, 'w') as f:
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
-                    new_cmd = base_cmd + "--seed {} --loss {} --save recalibration --dataset {} --posthoc_recalibration average --train_frac {}".format(seed, loss, dataset, train_frac)
+                    new_cmd = base_cmd + "--seed {} --loss {} --save recalibration_combine_val_train --dataset {} --posthoc_recalibration average --train_frac {}".format(seed, loss, dataset, train_frac)
                     print(new_cmd, file=f)
                     print('sleep 1', file=f)
 
@@ -78,7 +78,7 @@ def evaluate_average_calibration_train_frac(dataset):
 def evaluate_distribution_calibration(dataset):
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_laplace_mixture_nll", "gaussian_nll"]
-    n_bins = [5]
+    n_bins = [20]
 
     for n_bin in n_bins:
         for loss in losses:
@@ -88,7 +88,7 @@ def evaluate_distribution_calibration(dataset):
             with open(script_fn, 'w') as f:
                print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
                for seed in seeds:
-                   new_cmd = base_cmd + "--seed {} --loss {} --save distribution_recalibration --dataset {} --posthoc_recalibration distribution --n_bins {}".format(seed, loss, dataset, n_bin)
+                   new_cmd = base_cmd + "--seed {} --loss {} --save distribution_recalibration_combine_val_train --dataset {} --posthoc_recalibration distribution --n_bins {} --combine_val_train".format(seed, loss, dataset, n_bin)
                    print(new_cmd, file=f)
                print('sleep 1', file=f)
 
@@ -117,7 +117,7 @@ def evaluate_point_calibration(dataset):
     num_layers = [1]
     n_dims = [20]
     epochs = [5000]
-    n_bins = [50, 20, 10]
+    n_bins = [20]
 
     for n_bin in n_bins:
         for loss in losses:
@@ -129,7 +129,7 @@ def evaluate_point_calibration(dataset):
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
                     for seed in seeds:
                         for n_dim in n_dims:
-                            new_cmd = base_cmd + "--seed {} --loss {} --save point_recalibration --dataset {} --posthoc_recalibration point --epochs 5000 --num_layers {} --n_dim {} --n_bins {}".format(seed, loss, dataset, n_layer, n_dim, n_bin)
+                            new_cmd = base_cmd + "--seed {} --loss {} --save point_recalibration --dataset {} --posthoc_recalibration point --epochs 5000 --num_layers {} --n_dim {} --n_bins {} --val_only".format(seed, loss, dataset, n_layer, n_dim, n_bin)
                             print(new_cmd, file=f)
                     print('sleep 1', file=f)
 
@@ -138,9 +138,8 @@ def evaluate_point_calibration_single_mlp(dataset):
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_nll", "gaussian_laplace_mixture_nll"]
     num_layers = [1]
-    n_dims = [20]
-    epochs = [5000]
-    n_bins = [10, 20, 50]
+    n_dims = [50]
+    n_bins = [20]
 
     for n_bin in n_bins:
         for loss in losses:
@@ -152,7 +151,8 @@ def evaluate_point_calibration_single_mlp(dataset):
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
                     for seed in seeds:
                         for n_dim in n_dims:
-                            new_cmd = base_cmd + "--seed {} --loss {} --save point_single_mlp --dataset {} --posthoc_recalibration point --epochs 5000 --num_layers {} --n_dim {} --n_bins {} --flow_type single_mlp".format(seed, loss, dataset, n_layer, n_dim, n_bin)
+                            epochs = 10000
+                            new_cmd = base_cmd + "--seed {} --loss {} --save point_single_mlp_protein --dataset {} --posthoc_recalibration point --epochs {} --num_layers {} --n_dim {} --n_bins {} --flow_type single_mlp --learning_rate 1e-3 --val_only".format(seed, loss, dataset, epochs, n_layer, n_dim, n_bin)
                             print(new_cmd, file=f)
                     print('sleep 1', file=f)
 
@@ -174,19 +174,21 @@ def evaluate_point_calibration_single_mlp_learning_rate(dataset):
                     print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
                     for seed in seeds:
                         for n_dim in n_dims:
+                   
                             new_cmd = base_cmd + "--seed {} --loss {} --save point_single_mlp_new_lr --dataset {} --posthoc_recalibration point --epochs 5000 --num_layers {} --n_dim {} --n_bins {} --flow_type single_mlp --learning_rate 1e-2".format(seed, loss, dataset, n_layer, n_dim, n_bin)
                             print(new_cmd, file=f)
                     print('sleep 1', file=f)
 
 
 def evaluate_point_calibration_single_mlp_dropout():
-    datasets = ["kin8nm", "satellite", "crime"]
+#    datasets = ["kin8nm", "satellite", "crime"]
+    datasets = ["naval", "protein"]
     seeds=[0, 1, 2, 3, 4, 5]
     losses=["gaussian_nll", "gaussian_laplace_mixture_nll"]
     num_layers = [1]
     n_dims = [20]
-    epochs = [1000]
-    n_bins = [5, 10, 20]
+    epochs = [2000]
+    n_bins = [20]
 
     for dataset in datasets:
         for n_bin in n_bins:
@@ -199,7 +201,7 @@ def evaluate_point_calibration_single_mlp_dropout():
                         print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id), file=f)
                         for seed in seeds:
                             for n_dim in n_dims:
-                                 new_cmd = base_cmd + "--seed {} --loss {} --save point_single_mlp_dropout --dataset {} --posthoc_recalibration point --epochs 2000 --num_layers {} --n_dim {} --n_bins {} --flow_type single_mlp_dropout".format(seed, loss, dataset, n_layer, n_dim, n_bin)
+                                 new_cmd = base_cmd + "--seed {} --loss {} --save point_single_mlp_dropout --dataset {} --posthoc_recalibration point --epochs 10000 --num_layers {} --n_dim {} --n_bins {} --flow_type single_mlp_dropout".format(seed, loss, dataset, n_layer, n_dim, n_bin)
                                  print(new_cmd, file=f)
                         print('sleep 1', file=f)
 
@@ -227,11 +229,12 @@ def evaluate_point_calibration_single_mlp_combine(dataset):
                     print('sleep 1', file=f)
 
 
-
-#generate_baseline_models()
+generate_baseline_models()
 #evaluate_distribution_calibration("crime")
 #for dataset in ["naval", "crime", "satellite", "kin8nm", "protein"]:
 #    evaluate_distribution_calibration(dataset)
 
-for dataset in ["naval", "protein", "crime", "kin8nm", "satellite"]:
-    evaluate_distribution_calibration(dataset)
+#for dataset in ["protein"]:
+#    evaluate_average_calibration(dataset)
+#    evaluate_distribution_calibration(dataset)
+#    evaluate_point_calibration_single_mlp(dataset)

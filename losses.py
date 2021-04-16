@@ -39,29 +39,30 @@ class PointCalibrationLoss:
             labels_sorted = torch.sort(y.flatten())[0]
             sampled_index = ((torch.rand(n_y_bins) * 0.8 + 0.1) * y.shape[0]).type(torch.long)
             thresholds = labels_sorted[sampled_index]
-        vals = []
-        for k in range(n_y_bins):
-            sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
-            vals.append(sub)
-        threshold_vals = torch.cat(vals, dim=0)
-        sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
+            vals = []
+            for k in range(n_y_bins):
+                sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
+                vals.append(sub)
+            threshold_vals = torch.cat(vals, dim=0)
+            sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
         total = 0
         count = 0
         indices= (torch.linspace(0, 1, n_bins, device=y.get_device()) * (y.shape[0]-1)).type(torch.long)
         pce_mean = 0
         cdf_vals = dist.cdf(y.flatten())
         bin_size = int(cdf_vals.shape[0]/n_bins)
+#        offset = cdf_vals.shape[0] - bin_size * n_bins
         errs = torch.zeros(n_y_bins, n_bins).to(y.get_device())
         for i in range(n_y_bins):
-            offset_idx = torch.randint(low=int(bin_size/2), high=bin_size-1, size=(1,)).item()
+            offset = torch.randint(low=int((0.75)*bin_size), high=bin_size, size=(1,) ).item()
+            bin_sizes = []
             for x in range(n_bins):
                 if x == 0:
-                    selected_indices = sorted_indices[i, :offset_idx]
-                elif x > 0 and x < self.discretization -1:
-                    selected_indices = sorted_indices[i, offset_idx + (x-1) * bin_size : offset_idx + (x) * bin_size]
+                    selected_indices = sorted_indices[i, : offset]
+                elif x < self.discretization-1:
+                    selected_indices = sorted_indices[i, offset + (x-1) * bin_size : offset + x * bin_size]
                 else:
-                    selected_indices = sorted_indices[i,  offset_idx + (x-1)* bin_size:]
-
+                    selected_indices = sorted_indices[i, offset + (x-1)* bin_size :]
                 selected_cdf = cdf_vals[selected_indices]
                 diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[0]).to(y.get_device())).mean()
                 errs[i][x] = diff_from_uniform

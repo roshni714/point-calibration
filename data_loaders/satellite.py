@@ -7,9 +7,9 @@ import pandas as pd
 
 class SatelliteDataset(Dataset):
 
-    def __init__(self):
+    def __init__(self, name):
         vb_dir = os.path.dirname(__file__)
-        data_dir = os.path.join(vb_dir, "data/satellite")
+        data_dir = os.path.join(vb_dir, "data/{}".format(name))
         self.f = h5py.File('{}/satellite.h5'.format(data_dir), 'r')
         self.y_scale = pd.read_csv("{}/data.csv".format(data_dir))["label"].std() 
 
@@ -19,10 +19,13 @@ class SatelliteDataset(Dataset):
     def __len__(self):
         return len(self.f.keys())
 
+def get_satellite_dataloaders(name="combined_satellite", split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False):
+    dataset = SatelliteDataset(name=name)
+    return dataset_to_dataloaders(dataset, split_seed, batch_size, test_fraction, combine_val_train)
 
-def get_satellite_dataloaders(split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False):
+
+def dataset_to_dataloaders(dataset, split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False):
      
-    dataset = SatelliteDataset()
     # Creating data indices for training and validation splits:
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
@@ -72,14 +75,6 @@ def get_satellite_dataloaders(split_seed=0, batch_size=None, test_fraction=0.1, 
 
 if __name__ == "__main__":
 
-    dataset = SatelliteDataset()
-    min_num = float("inf")
-    max_num = -float("inf")
-    for i in range(len(dataset)):
-        if torch.max(dataset[i][0]) > max_num:
-            max_num = torch.max(dataset[i][0])
-        if torch.min(dataset[i][0]) < min_num:
-            min_num = torch.min(dataset[i][0])
-    print(min_num, max_num)
+    dataset = SatelliteCombinedDataset()
 
 

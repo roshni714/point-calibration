@@ -27,6 +27,26 @@ class SimpleSigmoidLayer(torch.nn.Module):
         xnew = torch.matmul(w, out)
         return xnew
 
+class OneLayerFlow(torch.nn.Module):
+    def __init__(self, in_dim, n_dim):
+        super(OneLayerFlow, self).__init__()
+        self.log_a = nn.Parameter(torch.randn(n_dim, in_dim))
+        self.b = nn.Parameter(torch.randn(n_dim, 1))
+        self.unnormalized_w = nn.Parameter(torch.randn(1, n_dim))
+        self.softmax = torch.nn.Softmax(dim=1)
+
+    def forward(self, x):
+#        a = torch.exp(self.log_a)
+        a = torch.exp(self.log_a)
+        inner = torch.matmul(a, x) + self.b
+        out = torch.sigmoid(inner)
+        w = self.softmax(self.unnormalized_w)
+        xnew = torch.matmul(w, out)
+        return xnew
+
+
+
+
 class SigmoidLayer(torch.nn.Module):
     def __init__(self, in_dim, out_dim):
         super(SigmoidLayer, self).__init__()
@@ -84,10 +104,10 @@ class SigmoidFlow(torch.nn.Module):
         self.num_layers = num_layers
         self.n_dim = n_dim
         l = [SimpleSigmoidLayer(n_dim=n_dim, no_in=False)]
-        for i in range(self.num_layers-1):
-            l.append(SimpleSigmoidLayer(n_dim=n_dim, no_in=False))
-        l.append(torch.nn.Sigmoid())
-        self.layers =  nn.ModuleList(l)
+#        for i in range(self.num_layers-1):
+#            l.append(SimpleSigmoidLayer(n_dim=n_dim, no_in=False))
+#        l.append(torch.nn.Sigmoid())
+#        self.layers =  nn.ModuleList(l)
 
     def forward(self, x):
         x = x.reshape(-1, 1, 1)
@@ -214,7 +234,7 @@ class SigmoidFlowND(nn.Module):
             final = self.forward(x, extra).flatten()
             bottom = self.forward(torch.zeros(x.shape).to(device), extra).flatten()
             top = self.forward(torch.ones(x.shape).to(device), extra).flatten()
-            if torch.sum(torch.isnan(1/(top-bottom))) > 0:
+            if torch.sum(torch.isinf(1/(top-bottom))) > 0:
                 import pdb
                 pdb.set_trace()
  
@@ -241,11 +261,6 @@ class SigmoidFlowNDSingleMLP(nn.Module):
             l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
             self.layers =  nn.ModuleList(l)
             
-
-#            mlps = []
-#            for i in range(n_in-1):
-#                mlps.append(torch.nn.Sequential(torch.nn.Linear(1, 10), torch.nn.ReLU(),torch.nn.Linear(10, 10), torch.nn.ReLU(), torch.nn.Linear(10, 1)))
-#            self.mlps = nn.ModuleList(mlps)
             self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 10), torch.nn.ReLU(), torch.nn.Linear(10, 1))
 
         def forward(self, x, extra=None):
@@ -278,11 +293,7 @@ class SigmoidFlowNDSingleMLP(nn.Module):
             final = self.forward(x, extra).flatten()
             bottom = self.forward(torch.zeros(x.shape).to(device), extra).flatten()
             top = self.forward(torch.ones(x.shape).to(device), extra).flatten()
-            if torch.sum(torch.isnan(1/(top-bottom))) > 0:
-                import pdb
-                pdb.set_trace()
- 
-            final = (final - bottom)/(top - bottom)
+            final = (final - bottom)/(top - bottom).clamp(min=1e-10)
             if torch.sum(torch.isnan(final)) > 0:
                 import pdb
                 pdb.set_trace()
@@ -299,10 +310,11 @@ class SigmoidFlowNDSingleMLPDropout(nn.Module):
             self.num_layers = num_layers
             self.n_dim = n_dim
             self.n_in = n_in
-            l = [SigmoidLayer(in_dim=2, out_dim=n_dim)]
-            for i in range(num_layers-1):
-                l.append(SigmoidLayer(in_dim=n_dim, out_dim=n_dim))
-            l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
+#            l = [SigmoidLayer(in_dim=2, out_dim=n_dim)]
+#            for i in range(num_layers-1):
+#                l.append(SigmoidLayer(in_dim=n_dim, out_dim=n_dim))
+#            l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
+            l = [OneLayerFlow(in_dim=2, n_dim=n_dim)]
             self.layers =  nn.ModuleList(l)
             
 
@@ -310,7 +322,7 @@ class SigmoidFlowNDSingleMLPDropout(nn.Module):
 #            for i in range(n_in-1):
 #                mlps.append(torch.nn.Sequential(torch.nn.Linear(1, 10), torch.nn.ReLU(),torch.nn.Linear(10, 10), torch.nn.ReLU(), torch.nn.Linear(10, 1)))
 #            self.mlps = nn.ModuleList(mlps)
-            self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 20), torch.nn.Dropout(), torch.nn.ReLU(), torch.nn.Linear(20, 1))
+            self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 5), torch.nn.ReLU(), torch.nn.Linear(5, 1))
 
         def forward(self, x, extra=None):
 #            import pdb
@@ -342,11 +354,11 @@ class SigmoidFlowNDSingleMLPDropout(nn.Module):
             final = self.forward(x, extra).flatten()
             bottom = self.forward(torch.zeros(x.shape).to(device), extra).flatten()
             top = self.forward(torch.ones(x.shape).to(device), extra).flatten()
-            if torch.sum(torch.isnan(1/(top-bottom))) > 0:
+            if torch.sum(torch.isinf(1/(top-bottom))) > 0:
                 import pdb
                 pdb.set_trace()
  
-            final = (final - bottom)/(top - bottom)
+            final = (final - bottom)/(top - bottom).clamp(min=1e-10)
             if torch.sum(torch.isnan(final)) > 0:
                 import pdb
                 pdb.set_trace()

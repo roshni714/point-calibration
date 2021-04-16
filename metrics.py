@@ -57,8 +57,11 @@ class Metrics:
 
     def point_calibration_error_uniform_mass(self, discretization=20):
         n_bins = discretization
-        n_y_bins = 50 
-        thresholds = torch.linspace(self.y.min(), self.y.max(), n_y_bins)
+        n_y_bins = 50
+#        labels_sorted = self.y.flatten().sort()[0]
+#        thresholds = labels_sorted[((torch.rand(50) * 0.8 + 0.1) * self.y.shape[0]).type(torch.long)].detach().cpu()
+        thresholds = torch.linspace(self.y.min(), self.y.max(), 50)
+
         count = 0
         pce_mean = 0
         bin_size = int(self.y.shape[0]/discretization)
@@ -87,7 +90,9 @@ class Metrics:
         return rmse
 
     def decision_loss(self):
-        sampled_y0 = torch.linspace(torch.min(self.y), torch.max(self.y), 50)
+#        labels_sorted = self.y.flatten().sort()[0]
+#        sampled_y0 = labels_sorted[((torch.rand(50) * 0.8 + 0.1) * self.y.shape[0]).type(torch.long)].detach().cpu()
+        sampled_y0 = torch.linspace(self.y.min(), self.y.max(), 50)
         sampled_alpha = torch.linspace(0.05, 0.95, 50)
         decision_makers = []
         for i in range(len(sampled_alpha)):

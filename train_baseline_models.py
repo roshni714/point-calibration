@@ -9,11 +9,13 @@ from reporting import report_baseline_results
 
 def get_dataset(dataset, seed, train_frac):
     batch_size = 128
-    if dataset == "satellite":
-        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(split_seed=seed, batch_size=batch_size)
+
+    if dataset in ["satellite", "combined_satellite", "uganda", "tanzania", "rwanda", "malawi", "mozambique", "zimbabwe"]:
+        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(name=dataset, split_seed=seed, batch_size=batch_size)
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
-            dataset, split_seed=seed, test_fraction=0.3, batch_size=batch_size, train_frac=train_frac)
+            dataset, split_seed=seed, test_fraction=0.3, batch_size=batch_size, train_frac=train_frac, combine_val_train=combine_val_train)
+
     return train, val, test, in_size,  y_scale
 
 def objective(dataset, loss, seed, epochs, train_frac):

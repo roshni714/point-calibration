@@ -12,19 +12,17 @@ class PointRecalibrationModel(LightningModule):
     def __init__(self, datasets, y_scale, n_in=3, n_layers=1, n_dim=100, n_bins=20, flow_type=None, learning_rate=1e-3):
         super().__init__()
         self.y_scale = y_scale
-        self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets 
+        self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets
+        assert torch.sum(self.train_dist.mean() == self.val_dist.mean()) == self.train_dist.mean().shape[0]
         self.loss = PointCalibrationLoss(discretization=n_bins)
         self.learning_rate = learning_rate
         if flow_type== None:
             self.sigmoid_flow = SigmoidFlowND(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
         elif flow_type=="single_mlp":
             self.sigmoid_flow = SigmoidFlowNDSingleMLP(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
-        elif flow_type=="single_mlp_dropout":
-            self.sigmoid_flow = SigmoidFlowNDSingleMLPDropout(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
-        elif flow_type=="no_mlp":
-            self.sigmoid_flow = SigmoidFlowNDMonotonic(n_in=n_in, num_layers=n_layers, n_dim=n_dim)
 
     def training_step(self, batch, batch_idx):
+        self.train()
         comp = CompositionDist(self.sigmoid_flow, self.train_dist.to(self.device))
         l = self.loss(self.y_train.to(self.device), comp)
         tensorboard_logs = {"train_loss": l}
@@ -35,6 +33,7 @@ class PointRecalibrationModel(LightningModule):
         return optimizer
 
     def validation_step(self, batch, batch_idx):
+        self.eval()
         comp = CompositionDist(self.sigmoid_flow, self.val_dist.to(self.device))
         l = self.loss(self.y_val.to(self.device), comp)
         metrics = Metrics(comp, self.y_val.to(self.device), self.y_scale)
@@ -50,6 +49,7 @@ class PointRecalibrationModel(LightningModule):
         for key in outputs[0]:
             cal = torch.stack([x[key] for x in outputs]).mean()
             tensorboard_logs[key] = cal
+
         return {"val_loss": avg_loss, "log": tensorboard_logs}
 
     def test_step(self, batch, batch_idx):

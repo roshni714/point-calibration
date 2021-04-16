@@ -10,8 +10,8 @@ from reporting import report_recalibration_results
 
 def get_dataset(dataset, seed, train_frac, combine_val_train):
     batch_size = None
-    if dataset == "satellite":
-        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(split_seed=seed, batch_size=batch_size, combine_val_train=combine_val_train)
+    if dataset in ["satellite", "combined_satellite", "uganda", "tanzania", "rwanda", "malawi", "mozambique", "zimbabwe"]:
+        train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(name=dataset, split_seed=seed, batch_size=batch_size)
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
             dataset, split_seed=seed, test_fraction=0.3, batch_size=batch_size, train_frac=train_frac, combine_val_train=combine_val_train)
@@ -30,7 +30,7 @@ def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=Fal
             y = y.to(device)
             params = model(x)
             if cuda:
-                params = [param.flatten() for param in params]
+                params = [param.flatten().detach() for param in params]
                 y= y.flatten()
             else:
                 params = [param.detach().cpu().flatten() for param in params]
@@ -60,7 +60,7 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets = Non
         if val:
             checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
                 "recalibration_models/{}/".format(logname),
-                 monitor="point_calibration_error_uniform_mass",
+                 monitor="val_loss",
                  save_top_k=1,
                  mode="min",
             )
@@ -106,6 +106,7 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets = Non
 @argh.arg("--posthoc_recalibration", default=None)
 @argh.arg("--train_frac", default=1.0)
 @argh.arg("--combine_val_train", default=False)
+@argh.arg("--val_only", default=False)
 
 ## Recalibration parameters
 @argh.arg("--num_layers", default=2)
@@ -115,9 +116,15 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets = Non
 @argh.arg("--flow_type", default=None)
 @argh.arg("--learning_rate", default=1e-3)
 
-def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", posthoc_recalibration=None, train_frac=1.0, num_layers=2, n_dim=100, epochs=500, n_bins=20, flow_type=None, learning_rate=1e-3, combine_val_train = False):
+def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", posthoc_recalibration=None, train_frac=1.0, num_layers=2, n_dim=100, epochs=500, n_bins=20, flow_type=None, learning_rate=1e-3, combine_val_train = False, val_only=False):
 
     train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, combine_val_train)
+
+    if dataset == "combined_satellite":
+        dataset= "satellite_combined"
+
+    if val_only:
+        train = val
 
     if loss == "gaussian_nll":
         model_class = GaussianNLLModel
@@ -128,10 +135,9 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
         dist_class = GaussianLaplaceMixtureDistribution
         n_in = 6
     model_path = "models/{}_{}_seed_{}.ckpt".format(dataset, loss, seed)
-    print(model_path),
 
     if "point" in posthoc_recalibration:
-        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins, "flow_type": flow_type, "learning_rate": 1e-2} 
+        recalibration_parameters = {"num_layers": num_layers, "n_dim": n_dim, "epochs": epochs, "n_bins": n_bins, "flow_type": flow_type, "learning_rate": learning_rate} 
     elif "distribution" in posthoc_recalibration:
         recalibration_parameters = {"n_bins": n_bins}
     else:
@@ -140,7 +146,10 @@ def main(dataset="protein", seed=0, save="real", loss="point_calibration_loss", 
     model = model_class.load_from_checkpoint(model_path, input_size=in_size[0], y_scale=y_scale)
 
     if posthoc_recalibration == "point":
-        logname = "{}_{}_sigmoid_{}layers_{}_{}dim_{}bins_{}epochs_{}lr_{}".format(dataset, loss, num_layers, flow_type, n_dim, n_bins, epochs, learning_rate, seed)
+        if val_only:
+            logname = "{}_val_{}_sigmoid_{}layers_{}_{}dim_{}bins_{}epochs_{}lr_{}".format(dataset, loss, num_layers, flow_type, n_dim, n_bins, epochs, learning_rate, seed)
+        else:
+            logname = "{}_{}_sigmoid_{}layers_{}_{}dim_{}bins_{}epochs_{}lr_{}".format(dataset, loss, num_layers, flow_type, n_dim, n_bins, epochs, learning_rate, seed)
         dist_datasets = get_baseline_model_predictions(model, dist_class, train, val, test, cuda=True)
         del model
         recalibration_model = PointRecalibrationModel(dist_datasets, n_in=n_in, n_layers=num_layers, n_dim=n_dim, n_bins=n_bins, flow_type=flow_type, y_scale=y_scale)
