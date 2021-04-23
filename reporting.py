@@ -59,7 +59,12 @@ def report_recalibration_results(model, dataset, train_frac, loss_name, seed, po
               "point_calibration_error_uniform_mass": getattr(model, "point_calibration_error_uniform_mass", 0),
               "val_point_calibration_error": getattr(model, "val_point_calibration_error", 0),
               "val_point_calibration_error_uniform_mass": getattr(model, "val_point_calibration_error_uniform_mass", 0),
-#              "false_positive_rate_error": getattr(model, "false_positive_rate_error", 0),
+              "train_point_calibration_error": getattr(model, "train_point_calibration_error", 0),
+              "train_point_calibration_error_uniform_mass": getattr(model, "train_point_calibration_error_uniform_mass", 0),
+              "train_true_vs_pred_loss": getattr(model, "train_true_vs_pred_loss", 0),
+
+
+              #              "false_positive_rate_error": getattr(model, "false_positive_rate_error", 0),
 #              "false_negative_rate_error": getattr(model, "false_negative_rate_error", 0),
               "true_vs_pred_loss": getattr(model, "true_vs_pred_loss", 0),
               "decision_loss": getattr(model, "decision_loss", 0),

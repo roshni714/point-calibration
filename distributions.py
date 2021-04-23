@@ -102,10 +102,11 @@ class FlexibleDistribution:
         else:
             for i, f in enumerate(self.cdf_functions):
                 results.append(f(y))
-            results = torch.tensor(results).T[0, :, :]
+#            results = torch.tensor(results).T[0, :, :]
+        results = torch.Tensor(results)
         return results
 
-    
+  
     def mean(self):
         first_mom = []
         idx = int(self.xs.shape[0]/2)

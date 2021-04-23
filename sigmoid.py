@@ -261,7 +261,7 @@ class SigmoidFlowNDSingleMLP(nn.Module):
             l.append(SigmoidLayer(in_dim=n_dim, out_dim=1))
             self.layers =  nn.ModuleList(l)
             
-            self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 10), torch.nn.ReLU(), torch.nn.Linear(10, 1))
+            self.mlp = torch.nn.Sequential(torch.nn.Linear(n_in-1, 50), torch.nn.ReLU(), torch.nn.Linear(50, 1))
 
         def forward(self, x, extra=None):
 #            import pdb

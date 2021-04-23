@@ -7,10 +7,11 @@ import torch.distributions as D
 torch.manual_seed(0)
 
 class Metrics:
-    def __init__(self, dist, y, y_scale):
+    def __init__(self, dist, y, y_scale, discretization=20):
         self.y = y.flatten()
         self.ft_yt = dist.cdf(self.y).detach().cpu()
         self.dist = dist
+        self.discretization = discretization
 
         self.y_scale = y_scale
         
@@ -23,9 +24,9 @@ class Metrics:
     def sharpness(self):
         return self.dist.dist_std.mean().detach().cpu()
  
-    def point_calibration_error(self, min_bin=10, discretization=20):
+    def point_calibration_error(self, min_bin=10):
         y_sorted = torch.sort(self.y.flatten())[0]
-        n_bins = discretization
+        n_bins = self.discretization
         n_y_bins = 50
         sampled_y0 = torch.FloatTensor(n_y_bins).uniform_(torch.min(self.y), torch.max(self.y))
         sampled_alphas = torch.linspace(0, 1, n_bins)
@@ -55,8 +56,8 @@ class Metrics:
         return total_err/count
 
 
-    def point_calibration_error_uniform_mass(self, discretization=20):
-        n_bins = discretization
+    def point_calibration_error_uniform_mass(self):
+        n_bins = self.discretization
         n_y_bins = 50
 #        labels_sorted = self.y.flatten().sort()[0]
 #        thresholds = labels_sorted[((torch.rand(50) * 0.8 + 0.1) * self.y.shape[0]).type(torch.long)].detach().cpu()
@@ -64,7 +65,7 @@ class Metrics:
 
         count = 0
         pce_mean = 0
-        bin_size = int(self.y.shape[0]/discretization)
+        bin_size = int(self.y.shape[0]/self.discretization)
         cdf_vals = self.ft_yt.flatten()
         for i in range(n_y_bins):
             if "Composition" in self.dist.__class__.__name__:
@@ -73,8 +74,8 @@ class Metrics:
                 threshold_vals = self.dist.cdf(thresholds[i].view(-1, 1)).flatten()
        
             sorted_thresholds, sorted_indices = torch.sort(threshold_vals)
-            for x in range(discretization):
-                if x != discretization -1:
+            for x in range(self.discretization):
+                if x != self.discretization -1:
                     selected_indices = sorted_indices[x * bin_size: (x+1) * bin_size]
                 else:
                     selected_indices = sorted_indices[(x) * bin_size:]
@@ -83,6 +84,42 @@ class Metrics:
                 count += 1
         return pce_mean/count
 
+    def point_calibration_error_uniform_mass_errs(self):
+        n_bins = self.discretization
+        n_y_bins = 50
+        with torch.no_grad():
+            labels_sorted = torch.sort(self.y.flatten())[0]
+            thresholds = torch.linspace(self.y[int(0.2 * len(self.y))], self.y[int(0.8 * len(self.y))], 50)
+            vals = []
+            for k in range(n_y_bins):
+                sub = self.dist.cdf(thresholds[[k]]).unsqueeze(dim=0)
+                vals.append(sub)
+            threshold_vals = torch.cat(vals, dim=0)
+            sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
+        total = 0
+        count = 0
+        pce_mean = 0
+        cdf_vals = self.dist.cdf(self.y.flatten())
+        bin_size = int(cdf_vals.shape[0]/n_bins)
+        errs = torch.zeros(n_y_bins, n_bins)
+        all_subgroups = torch.split(sorted_indices, bin_size , dim = 1)
+        if cdf_vals.shape[0] % n_bins == 0:
+            for i, selected_indices in enumerate(all_subgroups):
+                selected_cdf = cdf_vals[selected_indices]
+                diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1])).mean(dim=1)
+                errs[:, i] = diff_from_uniform
+        else:
+           remove_last = all_subgroups[:-(len(all_subgroups) - n_bins)]
+           for i, selected_indices in enumerate(remove_last):
+                selected_cdf = cdf_vals[selected_indices]
+                diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1])).mean(dim=1)
+                errs[:, i] = diff_from_uniform
+           last = torch.hstack(all_subgroups[-(len(all_subgroups)-n_bins):])
+           selected_cdf = cdf_vals[last]
+           diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1])).mean(dim=1)
+           errs[:, -1] = diff_from_uniform
+
+        return errs, thresholds
 
     def rmse(self):
         mse_loss = torch.nn.MSELoss(reduction="mean")

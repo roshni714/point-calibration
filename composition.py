@@ -41,4 +41,46 @@ class CompositionDist():
 
 
 
+class RecalibrationLayer:
+
+    def __init__(self, outer_layer, outer_alphas, threshold):
+        self.outer_layer = outer_layer
+        self.outer_alphas = torch.Tensor(outer_alphas)
+        self.threshold = threshold
+
+    def cdf(self, inner, y):
+
+        quantile_cdfs = inner.cdf(self.threshold)
+        quantile_sorted, sorted_indices = torch.sort(quantile_cdfs)
+        current  = inner.cdf(y)
+        indices = torch.searchsorted(self.outer_alphas, quantile_sorted)
+
+        if y.shape[0] == 1 and y.shape[1] == 1:
+            out = torch.zeros(current.shape)
+            for j in torch.unique(indices):
+                placeholder = indices == j
+                y_vals = current[sorted_indices[placeholder]].detach().cpu().numpy()
+                if j < len(self.outer_layer):
+                    out[sorted_indices[placeholder]] = torch.tensor(self.outer_layer[j].predict(y_vals))
+                else:
+                    out[sorted_indices[placeholder]] = torch.tensor(self.outer_layer[j-1].predict(y_vals))
+        elif inner.mean().shape[0] == y.shape[0]:
+            out = torch.zeros(current.shape)
+            for j in torch.unique(indices):
+                placeholder = indices == j
+                y_vals = current[sorted_indices[placeholder]].detach().cpu().numpy()
+                if j < len(self.outer_layer):
+                    out[sorted_indices[placeholder]] = torch.tensor(self.outer_layer[j].predict(y_vals))
+                else:
+                    out[sorted_indices[placeholder]] = torch.tensor(self.outer_layer[j-1].predict(y_vals))
+        else:
+            if inner.mean().shape[0] == 1:
+               j = indices[0]
+               if j < len(self.outer_layer):
+                    out = torch.tensor(self.outer_layer[j].predict(current.detach().cpu().numpy().flatten()))
+               else:
+                    out = torch.tensor(self.outer_layer[j-1].predict(current.detach().cpu().numpy().flatten()))
+    
+        return out.numpy()
+
 

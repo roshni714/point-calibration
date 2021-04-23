@@ -27,18 +27,18 @@ class GaussianLaplaceMixtureNLL:
         return torch.mean(nll)
  
 class PointCalibrationLoss:
-    def __init__(self, discretization):
+    def __init__(self, discretization, y):
         self.name = "pointwise_calibration_loss"
         self.discretization = discretization
+        self.labels_sorted = torch.sort(y.flatten())[0]
+ 
 
     def __call__(self, y, dist):
         n_bins = self.discretization
         n_y_bins = 50
-#        with torch.no_grad():
         with torch.no_grad():
-            labels_sorted = torch.sort(y.flatten())[0]
             sampled_index = ((torch.rand(n_y_bins) * 0.8 + 0.1) * y.shape[0]).type(torch.long)
-            thresholds = labels_sorted[sampled_index]
+            thresholds = self.labels_sorted[sampled_index]
             vals = []
             for k in range(n_y_bins):
                 sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
@@ -47,27 +47,25 @@ class PointCalibrationLoss:
             sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
         total = 0
         count = 0
-        indices= (torch.linspace(0, 1, n_bins, device=y.get_device()) * (y.shape[0]-1)).type(torch.long)
         pce_mean = 0
         cdf_vals = dist.cdf(y.flatten())
         bin_size = int(cdf_vals.shape[0]/n_bins)
-#        offset = cdf_vals.shape[0] - bin_size * n_bins
         errs = torch.zeros(n_y_bins, n_bins).to(y.get_device())
-        for i in range(n_y_bins):
-            offset = torch.randint(low=int((0.75)*bin_size), high=bin_size, size=(1,) ).item()
-            bin_sizes = []
-            for x in range(n_bins):
-                if x == 0:
-                    selected_indices = sorted_indices[i, : offset]
-                elif x < self.discretization-1:
-                    selected_indices = sorted_indices[i, offset + (x-1) * bin_size : offset + x * bin_size]
-                else:
-                    selected_indices = sorted_indices[i, offset + (x-1)* bin_size :]
+        all_subgroups = torch.split(sorted_indices, bin_size , dim = 1)
+        if cdf_vals.shape[0] % n_bins == 0:
+            for i, selected_indices in enumerate(all_subgroups):
                 selected_cdf = cdf_vals[selected_indices]
-                diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[0]).to(y.get_device())).mean()
-                errs[i][x] = diff_from_uniform
+                diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1]).to(y.get_device())).mean(dim=1)
+                errs[:, i] = diff_from_uniform
+        else:
+           remove_last = all_subgroups[:-(len(all_subgroups) - n_bins)]
+           for i, selected_indices in enumerate(remove_last):
+                selected_cdf = cdf_vals[selected_indices]
+                diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1]).to(y.get_device())).mean(dim=1)
+                errs[:, i] = diff_from_uniform
+           last = torch.hstack(all_subgroups[-(len(all_subgroups)-n_bins):])
+           selected_cdf = cdf_vals[last]
+           diff_from_uniform=  torch.abs(torch.sort(selected_cdf)[0] -torch.linspace(0.0, 1.0, selected_cdf.shape[1]).to(y.get_device())).mean(dim=1)
+           errs[:, -1] = diff_from_uniform
+        
         return torch.mean(errs)
-
-
-
-

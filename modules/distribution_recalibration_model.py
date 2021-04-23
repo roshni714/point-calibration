@@ -16,6 +16,7 @@ class DistributionRecalibrationModel:
         self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets 
         self.y_scale = y_scale
         self.n_bins = n_bins
+        self.n_bins_test = int(math.sqrt(self.y_train.shape[0]))
 
     def training_step(self):
         train_forecasts = self.train_dist.cdf(self.y_train.flatten())
@@ -68,6 +69,7 @@ class DistributionRecalibrationModel:
             return answer
 
         params = self.test_dist.params 
+        uncalibrated_cdf_count = 0
         print("Inference on test examples...")
         for i in range(self.test_dist.params[0].shape[0]):
             sub_params = tuple([params[j][[i]] for j in range(len(params))])
@@ -91,11 +93,12 @@ class DistributionRecalibrationModel:
                 updated = True
             if not updated:
                 cdfs.append(test_forecast.flatten().numpy())
-
+                uncalibrated_cdf_count += 1
+                print(uncalibrated_cdf_count)
 
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
-        metrics = Metrics(dist, self.y_test, self.y_scale)
+        metrics = Metrics(dist, self.y_test, self.y_scale, discretization=self.n_bins_test)
         dic = metrics.get_metrics(decision_making=True)
         return dic
 
@@ -136,7 +139,7 @@ class DistributionRecalibrationModel:
 
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
-        metrics = Metrics(dist, self.y_val, self.y_scale)
+        metrics = Metrics(dist, self.y_val, self.y_scale, discretization=self.n_bins)
         dic = metrics.get_metrics(decision_making=True)
         setattr(self, "val_point_calibration_error", dic["point_calibration_error"].item())
         setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
