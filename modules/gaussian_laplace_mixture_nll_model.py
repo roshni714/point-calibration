@@ -1,18 +1,21 @@
 import torch
 from pytorch_lightning.core.lightning import LightningModule
-from  metrics import Metrics
+from metrics import Metrics
 from losses import GaussianLaplaceMixtureNLL
 from distributions import GaussianLaplaceMixtureDistribution
+
 
 class GaussianLaplaceMixtureNLLModel(LightningModule):
     def __init__(self, input_size, y_scale):
         super().__init__()
         torch.set_default_tensor_type(torch.DoubleTensor)
-        self.layers = torch.nn.Sequential(torch.nn.Linear(input_size, 100),
-                                          torch.nn.ReLU(),
-                                          torch.nn.Linear(100, 100),
-                                          torch.nn.ReLU(),
-                                          torch.nn.Linear(100, 5))
+        self.layers = torch.nn.Sequential(
+            torch.nn.Linear(input_size, 100),
+            torch.nn.ReLU(),
+            torch.nn.Linear(100, 100),
+            torch.nn.ReLU(),
+            torch.nn.Linear(100, 5),
+        )
         self.loss = GaussianLaplaceMixtureNLL()
         self.y_scale = y_scale
 
@@ -37,9 +40,11 @@ class GaussianLaplaceMixtureNLLModel(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        params  = self(x)
+        params = self(x)
         loss = self.loss(y, *params)
-        cpu_params = tuple([ params[i].detach().cpu().flatten() for i in range(len(params))])
+        cpu_params = tuple(
+            [params[i].detach().cpu().flatten() for i in range(len(params))]
+        )
         dist = GaussianLaplaceMixtureDistribution(cpu_params)
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
         dic = {}
@@ -61,7 +66,9 @@ class GaussianLaplaceMixtureNLLModel(LightningModule):
         dic = {
             "test_loss": self.loss(y, *params),
         }
-        cpu_params = tuple([ params[i].detach().cpu().flatten() for i in range(len(params))])
+        cpu_params = tuple(
+            [params[i].detach().cpu().flatten() for i in range(len(params))]
+        )
         dist = GaussianLaplaceMixtureDistribution(cpu_params)
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
         dic2 = metrics.get_metrics(decision_making=True)
@@ -72,7 +79,7 @@ class GaussianLaplaceMixtureNLLModel(LightningModule):
         avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
         tensorboard_logs = {}
         for key in outputs[0]:
-            if key  not in ["all_err", "all_loss", "all_y0", "all_c"]:
+            if key not in ["all_err", "all_loss", "all_y0", "all_c"]:
                 cal = torch.stack([x[key] for x in outputs]).mean()
                 tensorboard_logs[key] = cal
                 setattr(self, key, float(cal))

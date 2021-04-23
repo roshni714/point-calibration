@@ -12,10 +12,13 @@ from torch.utils.data import random_split, DataLoader, TensorDataset
 from sklearn.datasets import load_boston
 from data_loaders.utils import get_dataloaders
 
-def get_uci_datasets(name, split_seed=0, test_fraction=0.10, train_frac=1.0, combine_val_train=False):
+
+def get_uci_datasets(
+    name, split_seed=0, test_fraction=0.10, train_frac=1.0, combine_val_train=False
+):
     r"""
     Returns a UCI regression dataset in the form of numpy arrays.
-    
+
     Arguments:
         name (str): name of the dataset
         split_seed (int): seed used to generate train/test split
@@ -45,7 +48,7 @@ def get_uci_datasets(name, split_seed=0, test_fraction=0.10, train_frac=1.0, com
         "energy": _load_app_energy,
     }
     if name in ["boston", "concrete", "wine"] and test_fraction <= 0.25:
-        test_fraction = 0.25 
+        test_fraction = 0.25
 
     print("Loading dataset {}....".format(name))
     if name == "depth":
@@ -92,9 +95,9 @@ def get_uci_datasets(name, split_seed=0, test_fraction=0.10, train_frac=1.0, com
         permutation = rs.permutation(X_train.shape[0])
 
     if combine_val_train:
-        val_fraction = 0.
+        val_fraction = 0.0
     else:
-        val_fraction = 0.10 
+        val_fraction = 0.10
     size_train = int(np.round(X_train.shape[0] * (1 - val_fraction)))
     index_train = permutation[0:size_train]
     index_val = permutation[size_train:]
@@ -115,17 +118,17 @@ def get_uci_datasets(name, split_seed=0, test_fraction=0.10, train_frac=1.0, com
         data = (data - mu) / scale
         return data, mu, scale
 
-    #Standardize 
+    # Standardize
     X_new_train, x_train_mu, x_train_scale = standardize(X_new_train)
     X_test = (X_test - x_train_mu) / x_train_scale
     y_new_train, y_train_mu, y_train_scale = standardize(y_new_train)
     y_test = (y_test - y_train_mu) / y_train_scale
-    X_val = (X_val - x_train_mu)/ x_train_scale
+    X_val = (X_val - x_train_mu) / x_train_scale
     y_val = (y_val - y_train_mu) / y_train_scale
 
     train = TensorDataset(
-            torch.Tensor(X_new_train).type(torch.float64),
-            torch.Tensor(y_new_train).type(torch.float64),
+        torch.Tensor(X_new_train).type(torch.float64),
+        torch.Tensor(y_new_train).type(torch.float64),
     )
 
     val = TensorDataset(
@@ -142,7 +145,15 @@ def get_uci_datasets(name, split_seed=0, test_fraction=0.10, train_frac=1.0, com
 
     return train, val, test, in_size, target_size, y_train_scale
 
-def get_uci_dataloaders(name, split_seed=0, test_fraction=0.1, batch_size=None, train_frac=1.0, combine_val_train=False):
+
+def get_uci_dataloaders(
+    name,
+    split_seed=0,
+    test_fraction=0.1,
+    batch_size=None,
+    train_frac=1.0,
+    combine_val_train=False,
+):
     r"""
     Returns a UCI regression dataset in the form of Pytorch dataloaders
     for train, validation, and test. Also returns the sizes of features and label
@@ -162,11 +173,17 @@ def get_uci_dataloaders(name, split_seed=0, test_fraction=0.1, batch_size=None, 
         y_train_scale (float): standard deviation of training labels.
 
     """
-    train, val, test, in_size, target_size, y_train_scale  = get_uci_datasets(
-        name, split_seed=split_seed, test_fraction=test_fraction, train_frac=train_frac, combine_val_train=combine_val_train
+    train, val, test, in_size, target_size, y_train_scale = get_uci_datasets(
+        name,
+        split_seed=split_seed,
+        test_fraction=test_fraction,
+        train_frac=train_frac,
+        combine_val_train=combine_val_train,
     )
 
-    train_loader, val_loader, test_loader = get_dataloaders(train, val, test, batch_size)
+    train_loader, val_loader, test_loader = get_dataloaders(
+        train, val, test, batch_size
+    )
     return train_loader, val_loader, test_loader, in_size, target_size, y_train_scale
 
 
@@ -403,17 +420,24 @@ def _load_protein():
     y = data.values[:, 0]
     return X, y
 
+
 def _load_app_energy():
     def filter_nan(raw):
-        idx = (np.sum(np.isnan(raw), axis=1) == 0)
+        idx = np.sum(np.isnan(raw), axis=1) == 0
         raw = raw[idx, :]
         return raw
-    raw = np.genfromtxt(os.path.join(data_dir, "energy/energydata_complete.csv"), delimiter=',', skip_header=True)
+
+    raw = np.genfromtxt(
+        os.path.join(data_dir, "energy/energydata_complete.csv"),
+        delimiter=",",
+        skip_header=True,
+    )
 
     raw = filter_nan(raw)
     X = raw[:, 1:]
     y = raw[:, 0]
     return X, y
+
 
 def _load_song():
     """
@@ -482,22 +506,23 @@ def load_flight_delay():
 
     return (X_train, y_train), (X_test, y_test), y_scale
 
+
 def _load_crime():
-    reader = open(os.path.join(data_dir, 'crime/communities.data'))
+    reader = open(os.path.join(data_dir, "crime/communities.data"))
 
     attributes = []
     while True:
-        line = reader.readline().split(',')
+        line = reader.readline().split(",")
         if len(line) < 128:
             break
-        line = ['-1' if val == '?' else val for val in line]
+        line = ["-1" if val == "?" else val for val in line]
         line = np.array(line[5:], dtype=np.float)
         attributes.append(line)
     reader.close()
 
     attributes = np.stack(attributes, axis=0)
 
-    reader = open(os.path.join(data_dir, 'crime/names'))
+    reader = open(os.path.join(data_dir, "crime/names"))
     names = []
     for i in range(128):
         line = reader.readline().split()[1]
@@ -506,10 +531,13 @@ def _load_crime():
     names = np.array(names)
 
     y = attributes[:, -1:]
-    attributes= attributes[:, :-1]
-    selected = np.argwhere(np.array([np.min(attributes[:, i]) for i in range(attributes.shape[1])]) >= 0).flatten()
+    attributes = attributes[:, :-1]
+    selected = np.argwhere(
+        np.array([np.min(attributes[:, i]) for i in range(attributes.shape[1])]) >= 0
+    ).flatten()
     X = attributes[:, selected]
     return X, y.flatten()
+
 
 if __name__ == "__main__":
     load_funs = {

@@ -11,13 +11,15 @@ import torch
 vb_dir = os.path.dirname(__file__)
 data_dir = os.path.join(vb_dir, "data/GiveMeSomeCredit")
 
+
 def process_data(df):
-    percent = (df.isnull().sum() / df.isnull().count() * 100)
+    percent = df.isnull().sum() / df.isnull().count() * 100
     m_per = percent[percent > 10]
     df = df.drop(columns=m_per.index, axis=1)
     for i in df.columns:
         df[i].fillna(df[i].mean(), inplace=True)
     return df
+
 
 def _load_credit():
     data_file = os.path.join(data_dir, "cs-training.csv")
@@ -25,8 +27,9 @@ def _load_credit():
     train_data = process_data(train_data)
     X = train_data.values[:, 2:]
     y = train_data.values[:, 1]
- 
+
     return X, y
+
 
 def _load_credit_regression(seed):
     data_file = os.path.join(data_dir, "train.csv")
@@ -35,21 +38,21 @@ def _load_credit_regression(seed):
     y_train = train_data.values[:, -1]
 
     rng = np.random.RandomState(seed)
-    noise = rng.normal(0, 0.05, size= len(y_train))
+    noise = rng.normal(0, 0.05, size=len(y_train))
     y_train = y_train + noise
 
     test_data_file = os.path.join(data_dir, "test.csv")
     test_data = pd.read_csv(test_data_file, sep=",")
     X_test = test_data.values[:, :-1]
     y_test = test_data.values[:, -1]
-    noise = rng.normal(0, 0.05, size= len(y_test))
+    noise = rng.normal(0, 0.05, size=len(y_test))
     y_test = y_test + noise
- 
+
     val_data_file = os.path.join(data_dir, "val.csv")
     val_data = pd.read_csv(val_data_file, sep=",")
     X_val = val_data.values[:, :-1]
     y_val = val_data.values[:, -1]
-    noise = rng.normal(0, 0.05, size= len(y_val))
+    noise = rng.normal(0, 0.05, size=len(y_val))
     y_val = y_val + noise
 
     return X_train, y_train, X_test, y_test, X_val, y_val
@@ -57,6 +60,7 @@ def _load_credit_regression(seed):
 
 def get_credit_regression_dataloader(split_seed, batch_size):
     X_train, y_train, X_test, y_test, X_val, y_val = _load_credit_regression(split_seed)
+
     def standardize(data):
         mu = data.mean(axis=0, keepdims=1)
         scale = data.std(axis=0, keepdims=1)
@@ -89,14 +93,16 @@ def get_credit_regression_dataloader(split_seed, batch_size):
     in_size = X_train[0].shape
     target_size = y_train[0].shape
 
-    train_loader, val_loader, test_loader = get_dataloaders(train, val, test, batch_size)
+    train_loader, val_loader, test_loader = get_dataloaders(
+        train, val, test, batch_size
+    )
     return train_loader, val_loader, test_loader, in_size, target_size, y_train_scale
 
 
 def get_credit_dataloader(split_seed, batch_size):
     X, y = _load_credit()
 
-    test_fraction =0.3
+    test_fraction = 0.3
     if split_seed == -1:  # Do not shuffle!
         permutation = range(X.shape[0])
     else:
@@ -136,11 +142,10 @@ def get_credit_dataloader(split_seed, batch_size):
         data = (data - mu) / scale
         return data, mu, scale
 
-    #Standardize 
+    # Standardize
     X_new_train, x_train_mu, x_train_scale = standardize(X_new_train)
     X_test = (X_test - x_train_mu) / x_train_scale
-    X_val = (X_val - x_train_mu)/ x_train_scale
-
+    X_val = (X_val - x_train_mu) / x_train_scale
 
     train = TensorDataset(
         torch.Tensor(X_new_train).type(torch.float64),
@@ -159,11 +164,7 @@ def get_credit_dataloader(split_seed, batch_size):
     in_size = X_train[0].shape
     target_size = y_train[0].shape
 
-    train_loader, val_loader, test_loader = get_dataloaders(train, val, test, batch_size)
+    train_loader, val_loader, test_loader = get_dataloaders(
+        train, val, test, batch_size
+    )
     return train_loader, val_loader, test_loader, in_size, target_size
-
-
-
-
-
-

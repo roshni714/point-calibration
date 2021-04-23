@@ -6,30 +6,42 @@ from metrics import Metrics
 from distributions import FlexibleDistribution
 from composition import RecalibrationLayer
 from tqdm import tqdm
+
 RANGE = [-10, 10]
-RESOLUTION=8000
+RESOLUTION = 8000
 
 
 class IterativePointRecalibrationModel:
-
     def __init__(self, datasets, y_scale, n_bins, num_layers):
-        self.train_dist, self.y_train, self.val_dist, self.y_val, self.test_dist, self.y_test = datasets 
+        (
+            self.train_dist,
+            self.y_train,
+            self.val_dist,
+            self.y_val,
+            self.test_dist,
+            self.y_test,
+        ) = datasets
         self.y_scale = y_scale
         self.n_bins_test = int(math.sqrt(self.y_train.shape[0]))
         self.n_bins = n_bins
         self.num_layers = num_layers
 
     def training_step(self):
-        bin_size = int(self.y_train.shape[0]/self.n_bins)
+        bin_size = int(self.y_train.shape[0] / self.n_bins)
 
         current_dist = self.train_dist
         model = []
         for i in tqdm(range(self.num_layers)):
-            metrics = Metrics(current_dist, self.y_train, self.y_scale, discretization=self.n_bins_test)
+            metrics = Metrics(
+                current_dist,
+                self.y_train,
+                self.y_scale,
+                discretization=self.n_bins_test,
+            )
             errs, thresholds = metrics.point_calibration_error_uniform_mass_errs()
             threshold = torch.Tensor([thresholds[torch.argmax(errs.sum(dim=1))]])
             print(torch.max(errs.mean(dim=1)))
-            print(torch.mean(errs)) 
+            print(torch.mean(errs))
             current_train_forecasts = current_dist.cdf(self.y_train.flatten())
             quantile_threshold = current_dist.cdf(threshold).flatten()
             sorted_quantiles, sorted_indices = quantile_threshold.sort()
@@ -40,9 +52,13 @@ class IterativePointRecalibrationModel:
                 alphas.append(quantile_threshold[all_subgroups[j][-1]])
                 true_vals = current_train_forecasts[all_subgroups[j]]
                 sorted_vals = torch.sort(true_vals.flatten())[0].detach().cpu().numpy()
-                Y = np.array([(k+1)/(len(sorted_vals)+2) for k in range(len(sorted_vals))])
-                Y = np.insert(np.insert(Y, 0, 0), len(Y)+1, 1)
-                sorted_forecasts = np.insert(np.insert(sorted_vals, 0, 0), len(sorted_vals)+1, 1)
+                Y = np.array(
+                    [(k + 1) / (len(sorted_vals) + 2) for k in range(len(sorted_vals))]
+                )
+                Y = np.insert(np.insert(Y, 0, 0), len(Y) + 1, 1)
+                sorted_forecasts = np.insert(
+                    np.insert(sorted_vals, 0, 0), len(sorted_vals) + 1, 1
+                )
                 iso_reg = IsotonicRegression().fit(sorted_forecasts.flatten(), Y)
                 iso_reg_models.append(iso_reg)
 
@@ -54,12 +70,20 @@ class IterativePointRecalibrationModel:
 
         cdfs = []
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
-        params = self.train_dist.params 
+        params = self.train_dist.params
         dist = output_distribution_all_layers(self.train_dist, self.model)
-        metrics = Metrics(dist, self.y_train, self.y_scale, discretization=self.n_bins_test)
+        metrics = Metrics(
+            dist, self.y_train, self.y_scale, discretization=self.n_bins_test
+        )
         dic = metrics.get_metrics(decision_making=True)
-        setattr(self, "train_point_calibration_error_uniform_mass", dic["point_calibration_error_uniform_mass"].item())
-        setattr(self, "train_point_calibration_error", dic["point_calibration_error"].item())
+        setattr(
+            self,
+            "train_point_calibration_error_uniform_mass",
+            dic["point_calibration_error_uniform_mass"].item(),
+        )
+        setattr(
+            self, "train_point_calibration_error", dic["point_calibration_error"].item()
+        )
         setattr(self, "train_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
 
         print("Done train")
@@ -69,8 +93,10 @@ class IterativePointRecalibrationModel:
         cdfs = []
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
         params = self.test_dist.params
-        dist = output_distribution_all_layers(self.test_dist, self.model) 
-        metrics = Metrics(dist, self.y_test, self.y_scale, discretization=self.n_bins_test)
+        dist = output_distribution_all_layers(self.test_dist, self.model)
+        metrics = Metrics(
+            dist, self.y_test, self.y_scale, discretization=self.n_bins_test
+        )
         dic = metrics.get_metrics(decision_making=True)
         return dic
 
@@ -79,23 +105,31 @@ class IterativePointRecalibrationModel:
 
         cdfs = []
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
-        params = self.val_dist.params 
+        params = self.val_dist.params
         dist = output_distribution_all_layers(self.val_dist, self.model)
-        metrics = Metrics(dist, self.y_val, self.y_scale, discretization=self.n_bins_test)
+        metrics = Metrics(
+            dist, self.y_val, self.y_scale, discretization=self.n_bins_test
+        )
         dic = metrics.get_metrics(decision_making=True)
-        setattr(self, "val_point_calibration_error_uniform_mass", dic["point_calibration_error_uniform_mass"].item())
-        setattr(self, "val_point_calibration_error", dic["point_calibration_error"].item())
+        setattr(
+            self,
+            "val_point_calibration_error_uniform_mass",
+            dic["point_calibration_error_uniform_mass"].item(),
+        )
+        setattr(
+            self, "val_point_calibration_error", dic["point_calibration_error"].item()
+        )
         setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
         return dic
 
-
     def test_epoch_end(self, outputs):
         for key in outputs[0]:
-            if key  not in ["all_err", "all_loss", "all_y0", "all_c"]:
+            if key not in ["all_err", "all_loss", "all_y0", "all_c"]:
                 cal = torch.stack([x[key] for x in outputs]).mean()
                 setattr(self, key, float(cal))
             else:
                 setattr(self, key, outputs[0][key])
+
 
 def output_distribution_single_layer(dist, r):
     cdfs = []
@@ -103,7 +137,7 @@ def output_distribution_single_layer(dist, r):
     if "Flexible" not in dist.__class__.__name__:
         n_dist = dist.params[0].shape[0]
         for i in range(n_dist):
-            params = dist.params 
+            params = dist.params
             sub_params = tuple([params[j][[i]] for j in range(len(params))])
             small_test_dist = dist.__class__(sub_params)
             res = r.cdf(small_test_dist, y)
@@ -119,10 +153,9 @@ def output_distribution_single_layer(dist, r):
     new_dist = FlexibleDistribution((y, ranking))
     return new_dist
 
+
 def output_distribution_all_layers(dist, model):
     current_dist = dist
     for layer in model:
         current_dist = output_distribution_single_layer(current_dist, layer)
     return current_dist
-
-

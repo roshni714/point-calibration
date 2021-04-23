@@ -5,40 +5,53 @@ from torch.utils.data import Dataset, SubsetRandomSampler
 import h5py
 import pandas as pd
 
-class SatelliteDataset(Dataset):
 
+class SatelliteDataset(Dataset):
     def __init__(self, name):
         vb_dir = os.path.dirname(__file__)
         data_dir = os.path.join(vb_dir, "data/{}".format(name))
-        self.f = h5py.File('{}/satellite.h5'.format(data_dir), 'r')
-        self.y_scale = pd.read_csv("{}/data.csv".format(data_dir))["label"].std() 
+        self.f = h5py.File("{}/satellite.h5".format(data_dir), "r")
+        self.y_scale = pd.read_csv("{}/data.csv".format(data_dir))["label"].std()
 
     def __getitem__(self, idx):
-        return torch.Tensor(self.f[str(idx)]["image"].value)/255, torch.Tensor([self.f[str(idx)]["label"].value]) 
+        return torch.Tensor(self.f[str(idx)]["image"].value) / 255, torch.Tensor(
+            [self.f[str(idx)]["label"].value]
+        )
 
     def __len__(self):
         return len(self.f.keys())
 
-def get_satellite_dataloaders(name="combined_satellite", split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False):
+
+def get_satellite_dataloaders(
+    name="combined_satellite",
+    split_seed=0,
+    batch_size=None,
+    test_fraction=0.1,
+    combine_val_train=False,
+):
     dataset = SatelliteDataset(name=name)
-    return dataset_to_dataloaders(dataset, split_seed, batch_size, test_fraction, combine_val_train)
+    return dataset_to_dataloaders(
+        dataset, split_seed, batch_size, test_fraction, combine_val_train
+    )
 
 
-def dataset_to_dataloaders(dataset, split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False):
-     
+def dataset_to_dataloaders(
+    dataset, split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False
+):
+
     # Creating data indices for training and validation splits:
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     rs = np.random.RandomState(split_seed)
     permutation = rs.permutation(dataset_size)
 
-    size_train = int(np.round(dataset_size* (1 - test_fraction)))
+    size_train = int(np.round(dataset_size * (1 - test_fraction)))
     index_train = permutation[0:size_train]
     index_test = permutation[size_train:]
 
     permutation = rs.permutation(len(index_train))
     if combine_val_train:
-        val_fraction = 0.
+        val_fraction = 0.0
     else:
         val_fraction = 0.15
     size_val = int(val_fraction * size_train)
@@ -55,26 +68,36 @@ def dataset_to_dataloaders(dataset, split_seed=0, batch_size=None, test_fraction
     val_sampler = SubsetRandomSampler(index_val)
 
     if not batch_size:
-        train_loader = torch.utils.data.DataLoader(dataset, batch_size=len(index_train),
-                                           sampler=train_sampler)
-        validation_loader = torch.utils.data.DataLoader(dataset, batch_size=len(index_val),
-                                                sampler=val_sampler)
-        test_loader = torch.utils.data.DataLoader(dataset, batch_size=len(index_test),
-                                                sampler=test_sampler)
+        train_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_train), sampler=train_sampler
+        )
+        validation_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_val), sampler=val_sampler
+        )
+        test_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_test), sampler=test_sampler
+        )
     else:
-        train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-                                           sampler=train_sampler)
-        validation_loader = torch.utils.data.DataLoader(dataset, batch_size=len(index_val),
-                                                sampler=val_sampler)
-        test_loader = torch.utils.data.DataLoader(dataset, batch_size=len(index_test),
-                                                sampler=test_sampler)
+        train_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, sampler=train_sampler
+        )
+        validation_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_val), sampler=val_sampler
+        )
+        test_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_test), sampler=test_sampler
+        )
 
+    return (
+        train_loader,
+        validation_loader,
+        test_loader,
+        np.array([dataset[0][0].shape[0]]),
+        np.array([dataset[0][1].shape[0]]),
+        dataset.y_scale,
+    )
 
-
-    return train_loader, validation_loader, test_loader, np.array([dataset[0][0].shape[0]]), np.array([dataset[0][1].shape[0]]), dataset.y_scale  
 
 if __name__ == "__main__":
 
     dataset = SatelliteCombinedDataset()
-
-

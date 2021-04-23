@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader
 import torch
 
+
 def get_dataloaders(train, val, test, batch_size=None):
     r"""
     Transform numpy arrays of train and test data into Pytorch dataloaders for
@@ -33,6 +34,3 @@ def get_dataloaders(train, val, test, batch_size=None):
         val_loader = None
     test_loader = DataLoader(test, batch_size=len(test), shuffle=False)
     return train_loader, val_loader, test_loader
-
-
-
