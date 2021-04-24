@@ -42,6 +42,16 @@ def get_dataset(dataset, seed, train_frac, combine_val_train):
             batch_size=batch_size,
             combine_val_train=combine_val_train,
         )
+    elif dataset in ["cubic"]:
+        train, val, test, y_scale, in_size = get_simulated_dataloaders(
+            dataset,
+            split_seed=seed,
+            test_fraction=0.3,
+            batch_size=batch_size,
+            train_frac=train_frac,
+        )
+
+
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
             dataset,
@@ -329,6 +339,7 @@ def main(
         recalibration_parameters,
         save,
     )
+    return recalibration_model
 
 
 if __name__ == "__main__":

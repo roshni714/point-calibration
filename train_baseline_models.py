@@ -1,6 +1,6 @@
 from pytorch_lightning import Trainer, callbacks
-from modules import GaussianNLLModel, GaussianLaplaceMixtureNLLModel
-from data_loaders import get_uci_dataloaders, get_satellite_dataloaders
+from modules import GaussianNLLModel, GaussianLaplaceMixtureNLLModel, LearnedAvgCalibrationModel, LearnedPointCalibrationModel
+from data_loaders import get_uci_dataloaders, get_satellite_dataloaders, get_simulated_dataloaders
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
 import os
@@ -8,9 +8,9 @@ import argh
 from reporting import report_baseline_results
 
 
-def get_dataset(dataset, seed, train_frac):
-    batch_size = 128
-
+def get_dataset(dataset, seed, train_frac, batch_size):
+    if batch_size == 0:
+        batch_size = None
     if dataset in [
         "satellite",
         "combined_satellite",
@@ -24,6 +24,15 @@ def get_dataset(dataset, seed, train_frac):
         train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(
             name=dataset, split_seed=seed, batch_size=batch_size
         )
+    elif dataset in ["cubic"]:
+        train, val, test, y_scale, in_size = get_simulated_dataloaders(
+            dataset,
+            split_seed=seed,
+            test_fraction=0.3,
+            batch_size=batch_size,
+            train_frac=train_frac,
+        )
+
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
             dataset,
@@ -31,14 +40,12 @@ def get_dataset(dataset, seed, train_frac):
             test_fraction=0.3,
             batch_size=batch_size,
             train_frac=train_frac,
-            combine_val_train=combine_val_train,
         )
 
     return train, val, test, in_size, y_scale
 
-
-def objective(dataset, loss, seed, epochs, train_frac):
-    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac)
+def objective(dataset, loss, seed, epochs, train_frac, batch_size):
+    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, batch_size)
 
     checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
         "models/{}_{}_seed_{}/".format(dataset, loss, seed),
@@ -53,6 +60,10 @@ def objective(dataset, loss, seed, epochs, train_frac):
 
     if loss == "gaussian_nll":
         module = GaussianNLLModel
+    elif loss == "calibration_loss":
+        module = LearnedAvgCalibrationModel
+    elif loss ==  "point_calibration_loss":
+        module = LearnedPointCalibrationModel
     else:
         module = GaussianLaplaceMixtureNLLModel
 
@@ -75,7 +86,7 @@ def objective(dataset, loss, seed, epochs, train_frac):
 @argh.arg("--seed", default=0)
 @argh.arg("--train_frac", default=1.0)
 @argh.arg("--dataset", default="crime")
-
+@argh.arg("--batch_size", default=128)
 # Save
 @argh.arg("--save", default="real")
 
@@ -91,9 +102,10 @@ def main(
     loss="gaussian_nll",
     epochs=40,
     train_frac=1.0,
+    batch_size=128
 ):
     model = objective(
-        dataset, loss=loss, seed=seed, epochs=epochs, train_frac=train_frac
+        dataset, loss=loss, seed=seed, epochs=epochs, train_frac=train_frac, batch_size=batch_size
     )
     report_baseline_results(model, dataset, train_frac, loss, seed, save)
 

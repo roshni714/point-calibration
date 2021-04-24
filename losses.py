@@ -33,22 +33,28 @@ class GaussianLaplaceMixtureNLL:
         likelihood = likelihood.clamp(min=1e-20)
         nll = -torch.log(likelihood)
         return torch.mean(nll)
-
-
+       
 class PointCalibrationLoss:
-    def __init__(self, discretization, y):
+    def __init__(self, discretization, y=None):
         self.name = "pointwise_calibration_loss"
         self.discretization = discretization
-        self.labels_sorted = torch.sort(y.flatten())[0]
+        if y:
+            self.labels_sorted = torch.sort(y.flatten())[0]
+        else:
+            self.labels_sorted = None
 
     def __call__(self, y, dist):
         n_bins = self.discretization
         n_y_bins = 50
         with torch.no_grad():
+            if not self.labels_sorted:
+                labels_sorted = torch.sort(y.flatten())[0]
+            else:
+                labels_sorted = self.labels_sorted
             sampled_index = ((torch.rand(n_y_bins) * 0.8 + 0.1) * y.shape[0]).type(
                 torch.long
             )
-            thresholds = self.labels_sorted[sampled_index]
+            thresholds = labels_sorted[sampled_index]
             vals = []
             for k in range(n_y_bins):
                 sub = dist.cdf(thresholds[k]).unsqueeze(dim=0)
@@ -88,3 +94,16 @@ class PointCalibrationLoss:
             errs[:, -1] = diff_from_uniform
 
         return torch.mean(errs)
+
+class CalibrationLoss:
+    def __init__(self):
+        self.name = "calibration_loss"
+        self.sharpness_loss = GaussianNLL()
+        self.a = 1.
+
+    def __call__(self, y, mu, var):
+        dist = D.normal.Normal(mu.flatten(), torch.sqrt(var).flatten())
+        cdf_vals = dist.cdf(y.flatten())
+        calibration_error= torch.abs(torch.sort(cdf_vals)[0] - torch.linspace(0., 1., cdf_vals.shape[0]).to(mu.get_device())).mean()
+        return calibration_error * self.a  + self.sharpness_loss(y, mu, var) * (1 - self.a)
+ 

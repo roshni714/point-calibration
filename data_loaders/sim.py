@@ -55,7 +55,7 @@ def get_sklearn_synthetic(n_datapoints):
     )
 
 
-def get_simulated_dataloaders(dataset_config):
+def get_simulated_dataloaders(dataset_type="cubic", split_seed=0, test_fraction=0.3, train_frac=1., batch_size=128):
     r"""
     Returns Pytorch dataloaders for a simulated regression problem:
        y = X + eps where eps is sampled from a noise distribution.
@@ -67,10 +67,9 @@ def get_simulated_dataloaders(dataset_config):
         val (Pytorch dataloader): validation data
         test (Pytorch dataloader): test data
     """
-    n_datapoints = dataset_config["n_samples"]
-    dataset_type = dataset_config["dataset_type"]
-    seed = dataset_config["seed"]
-    restrict_train_frac = dataset_config["train_frac"]
+    n_datapoints = 5000
+    restrict_train_frac = train_frac
+    seed = split_seed
     if dataset_type == "cubic":
         X, y_noisy = get_cubic_dataset(n_datapoints, seed)
     elif dataset_type == "linear":
@@ -80,10 +79,9 @@ def get_simulated_dataloaders(dataset_config):
     elif dataset_type == "sklearn":
         X, y_noisy = get_sklearn_synthetic(n_datapoints, seed)
 
-    rs = np.random.RandomState(0)
+    rs = np.random.RandomState(seed)
     permutation = rs.permutation(X.shape[0])
 
-    test_fraction = 0.3
     size_train = int(np.round(X.shape[0] * (1 - test_fraction)))
     index_train = permutation[0:size_train]
     index_test = permutation[size_train:]
@@ -147,5 +145,5 @@ def get_simulated_dataloaders(dataset_config):
         val_loader,
         test_loader,
         torch.tensor(y_train_scale),
-        X[0].shape[0],
+        X[0].shape,
     )

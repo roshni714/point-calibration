@@ -14,9 +14,7 @@ simple_urls = ["https://raw.githubusercontent.com/yaringal/DropoutUncertaintyExp
                "https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx",
                "https://archive.ics.uci.edu/ml/machine-learning-databases/00265/CASP.csv",
                "https://raw.githubusercontent.com/yaringal/DropoutUncertaintyExps/6eb4497628d12b0f300f4b4f6bdc386bebad565c/UCI_Datasets/kin8nm/data/data.txt",
-#              ]
-
-simple_urls = ["https://github.com/Srceh/DistCal/blob/master/Dataset/Appliances_energy_prediction.csv?raw=true"]
+               "https://github.com/Srceh/DistCal/blob/master/Dataset/Appliances_energy_prediction.csv?raw=true"]
 
 file_names = ["wine_data_new.txt", 
               "Concrete_Data.xls",
