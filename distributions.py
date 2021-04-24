@@ -102,7 +102,7 @@ class FlexibleDistribution:
         self.xs, self.cdfs = params
         cdf_functions = []
         for cdf in self.cdfs:
-            cdf_functions.append(interp1d(self.xs, cdf, kind="previous"))
+            cdf_functions.append(interp1d(self.xs, cdf))
         self.cdf_functions = cdf_functions
         self.dist_mean = self.mean()
         self.dist_std = self.std()

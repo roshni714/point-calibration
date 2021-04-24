@@ -100,6 +100,14 @@ class IterativePointRecalibrationModel:
         dic = metrics.get_metrics(decision_making=True)
         return dic
 
+    def test(self):
+        print("Test...")
+        cdfs = []
+        y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
+        params = self.test_dist.params
+        dist = output_distribution_all_layers(self.test_dist, self.model)
+        return dist
+
     def validation_step(self):
         print("Validation...")
 

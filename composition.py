@@ -65,9 +65,7 @@ class RecalibrationLayer:
                         self.outer_layer[j].predict(y_vals)
                     )
                 else:
-                    out[sorted_indices[placeholder]] = torch.tensor(
-                        self.outer_layer[j - 1].predict(y_vals)
-                    )
+                    out[sorted_indices[placeholder]] = torch.tensor(y_vals)
         elif inner.mean().shape[0] == y.shape[0]:
             out = torch.zeros(current.shape)
             for j in torch.unique(indices):
@@ -78,9 +76,7 @@ class RecalibrationLayer:
                         self.outer_layer[j].predict(y_vals)
                     )
                 else:
-                    out[sorted_indices[placeholder]] = torch.tensor(
-                        self.outer_layer[j - 1].predict(y_vals)
-                    )
+                    out[sorted_indices[placeholder]] = torch.tensor(y_vals)
         else:
             if inner.mean().shape[0] == 1:
                 j = indices[0]
@@ -91,10 +87,7 @@ class RecalibrationLayer:
                         )
                     )
                 else:
-                    out = torch.tensor(
-                        self.outer_layer[j - 1].predict(
-                            current.detach().cpu().numpy().flatten()
-                        )
+                    out = torch.tensor(current.detach().cpu().numpy().flatten()
                     )
 
         return out.numpy()

@@ -92,15 +92,15 @@ def evaluate_average_calibration(dataset):
 def evaluate_iterative_point_calibration(dataset):
     seeds = [0, 1, 2, 3, 4, 5]
     losses = ["gaussian_laplace_mixture_nll", "gaussian_nll"]
-    n_bins = [10]
-    num_layers = [5, 10, 20]
+    n_bins = [5, 10, 20]
+    num_layers = [5]
 
     for num_layer in num_layers:
         for n_bin in n_bins:
             print(n_bins)
             for seed in seeds:
                 for loss in losses:
-                    exp_id = "mar28_benchmark_{}_{}_{}_{}_{}_{}".format(
+                    exp_id = "apr24_benchmark_{}_{}_{}_{}_{}_{}".format(
                         dataset, loss, "iterative_point", n_bin, num_layer, seed
                     )
                     script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
@@ -117,14 +117,14 @@ def evaluate_iterative_point_calibration(dataset):
                         if dataset in ["protein", "naval", "combined_satellite"]:
                             new_cmd = (
                                 base_cmd
-                                + "--seed {} --loss {} --save iterative_point_3  --dataset {} --posthoc_recalibration iterative_point --val_only --n_bins {} --num_layers {}".format(
+                                + "--seed {} --loss {} --save iterative_point_final  --dataset {} --posthoc_recalibration iterative_point --val_only --n_bins {} --num_layers {}".format(
                                     seed, loss, dataset, n_bin, num_layer
                                 )
                             )
                         else:
                             new_cmd = (
                                 base_cmd
-                                + "--seed {} --loss {} --save iterative_point_3  --dataset {} --posthoc_recalibration iterative_point --combine_val_train --n_bins {} --num_layers {}".format(
+                                + "--seed {} --loss {} --save iterative_point_final  --dataset {} --posthoc_recalibration iterative_point --combine_val_train --n_bins {} --num_layers {}".format(
                                     seed, loss, dataset, n_bin, num_layer
                                 )
                             )
