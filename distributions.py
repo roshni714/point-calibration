@@ -25,6 +25,9 @@ class GaussianLaplaceMixtureDistribution:
             + (1 - self.weight) * self.laplace_comp.mean
         )
 
+    def second_mom(self):
+        return self.std() **2 + self.mean() ** 2
+
     def std(self):
         gaussian_part = self.weight * (
             torch.pow(self.gaussian_comp.mean, 2) + self.gaussian_comp.variance
@@ -79,6 +82,9 @@ class GaussianDistribution:
     def std(self):
         return self.gaussian_comp.scale
 
+    def second_mom(self):
+        return self.std() **2 + self.mean() ** 2
+
     def to(self, device):
         self.gaussian_comp = D.Normal(
             self.gaussian_comp.mean.to(device), self.gaussian_comp.scale.to(device)
@@ -108,6 +114,7 @@ class FlexibleDistribution:
         self.dist_std = self.std()
 
     def cdf(self, y):
+        y = torch.clamp(y, min=-10, max=10)
         results = []
         if len(torch.tensor(y.shape)) == 1 and y.shape[0] == len(self.cdf_functions):
             for i, f in enumerate(self.cdf_functions):
@@ -135,6 +142,17 @@ class FlexibleDistribution:
             r = simps(1 - cdf[idx:], self.xs[idx:])
             first_mom.append(l + r)
         return torch.tensor(first_mom)
+
+    def second_mom(self):
+        second_mom = []
+        idx = int(self.xs.shape[0] / 2)
+
+        for cdf in self.cdfs:
+            left = -simps(self.xs[:idx] * cdf[:idx], self.xs[:idx])
+            right = simps(self.xs[idx:] * (1 - cdf[idx:]), self.xs[idx:])
+            second_mom.append((left + right) * 2)
+        second_mom = torch.tensor(second_mom)
+        return second_mom
 
     def std(self):
         second_mom = []

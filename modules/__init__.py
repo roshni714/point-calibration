@@ -1,3 +1,4 @@
+from modules.classifier_model import ClassifierModel
 from modules.gaussian_nll_model import GaussianNLLModel
 from modules.learned_avg_calibration_model import LearnedAvgCalibrationModel
 from modules.gaussian_laplace_mixture_nll_model import GaussianLaplaceMixtureNLLModel

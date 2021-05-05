@@ -69,6 +69,7 @@ class AverageRecalibrationModel:
             cdfs.append(res.flatten())
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
+        
         metrics = Metrics(
             dist, self.y_val, self.y_scale, discretization=self.n_bins_test
         )

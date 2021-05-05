@@ -45,7 +45,7 @@ class DistributionRecalibrationModel:
             param_bins = torch.linspace(
                 torch.min(self.train_dist.params[i]),
                 torch.max(self.train_dist.params[i]),
-                n,
+                n+1,
             )
             parameter_bins.append(param_bins)
             grid_shape.append(n)
@@ -56,7 +56,7 @@ class DistributionRecalibrationModel:
         iso_reg_models = iso_reg_models.tolist()
         print("Distribution calibration...")
         cartesian_product = itertools.product(
-            range(n - 1), repeat=len(self.train_dist.params)
+            range(n), repeat=len(self.train_dist.params)
         )
         for tup in tqdm(cartesian_product):
             condition = torch.ones(self.train_dist.params[i].shape).bool()
@@ -96,6 +96,55 @@ class DistributionRecalibrationModel:
 
         params = self.test_dist.params
         uncalibrated_cdf_count = 0
+        ex_to_bin = {}
+        print("Inference on test examples...")
+        for i in range(self.test_dist.params[0].shape[0]):
+            sub_params = tuple([params[j][[i]] for j in range(len(params))])
+            small_test_dist = self.test_dist.__class__(sub_params)
+            test_forecast = small_test_dist.cdf(y)
+            idx = []
+            for k in range(len(params)):
+                idx.append(torch.where(self.parameter_bins[k] > sub_params[k]))
+            updated = False
+            can_recalibrate = True
+            for sub_list in idx:
+                if len(sub_list[0]) == 0 or sub_list[0][0] == 0:
+                    can_recalibrate = False
+                    break
+
+            if can_recalibrate:
+                indices = [idx[k][0][0].item() - 1 for k in range(len(idx))]
+                iso_reg = lookup_by_tuple(self.iso_reg_models, tuple(indices))
+                ex_to_bin[i] = tuple(indices)
+                res = iso_reg.predict(test_forecast)
+                cdfs.append(res.flatten())
+                updated = True
+            if not updated:
+                cdfs.append(test_forecast.flatten().numpy())
+                uncalibrated_cdf_count += 1
+                print(uncalibrated_cdf_count)
+
+        ranking = torch.tensor(cdfs)
+        dist = FlexibleDistribution((y, ranking))
+        metrics = Metrics(
+            dist, self.y_test, self.y_scale, discretization=self.n_bins_test
+        )
+
+        dic = metrics.get_metrics(decision_making=True)
+        return dic
+
+    def test(self):
+        cdfs = []
+        y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
+
+        def lookup_by_tuple(l, tupl):
+            answer = l
+            for i in tupl:
+                answer = answer[i]
+            return answer
+
+        params = self.test_dist.params
+        uncalibrated_cdf_count = 0
         print("Inference on test examples...")
         for i in range(self.test_dist.params[0].shape[0]):
             sub_params = tuple([params[j][[i]] for j in range(len(params))])
@@ -124,11 +173,7 @@ class DistributionRecalibrationModel:
 
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
-        metrics = Metrics(
-            dist, self.y_test, self.y_scale, discretization=self.n_bins_test
-        )
-        dic = metrics.get_metrics(decision_making=True)
-        return dic
+        return dist
 
     def validation_step(self):
         cdfs = []

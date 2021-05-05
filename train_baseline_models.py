@@ -1,6 +1,6 @@
 from pytorch_lightning import Trainer, callbacks
 from modules import GaussianNLLModel, GaussianLaplaceMixtureNLLModel, LearnedAvgCalibrationModel, LearnedPointCalibrationModel
-from data_loaders import get_uci_dataloaders, get_satellite_dataloaders, get_simulated_dataloaders
+from data_loaders import get_uci_dataloaders, get_satellite_dataloaders, get_simulated_dataloaders, get_credit_regression_dataloader, get_mimic_dataloaders
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
 import os
@@ -32,7 +32,19 @@ def get_dataset(dataset, seed, train_frac, batch_size):
             batch_size=batch_size,
             train_frac=train_frac,
         )
-
+    elif dataset in ["credit"]:
+        train, val, test, in_size, output_size, y_scale = get_credit_regression_dataloader(
+            split_seed=seed,
+            batch_size=batch_size,
+        )
+    elif dataset in ["mimic_los"]:
+        train, val, test, in_size, output_size, y_scale = get_mimic_dataloaders(
+            dataset,
+            split_seed=seed,
+            test_fraction=0.3,
+            batch_size=batch_size,
+            train_frac=train_frac
+        )
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
             dataset,

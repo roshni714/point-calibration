@@ -16,6 +16,7 @@ from data_loaders import (
     get_uci_dataloaders,
     get_satellite_dataloaders,
     get_recalibration_dataloaders,
+    get_mimic_dataloaders
 )
 from torch.utils.data import TensorDataset
 from distributions import GaussianDistribution, GaussianLaplaceMixtureDistribution
@@ -50,7 +51,20 @@ def get_dataset(dataset, seed, train_frac, combine_val_train):
             batch_size=batch_size,
             train_frac=train_frac,
         )
+    elif dataset in ["mimic_los"]:
+        train, val, test, in_size, output_size, y_scale = get_mimic_dataloaders(
+            dataset,
+            split_seed=seed,
+            test_fraction=0.3,
+            batch_size=None,
+            train_frac=train_frac
+        )
 
+    elif dataset in ["credit"]:
+        train, val, test, in_size, output_size, y_scale = get_credit_regression_dataloader(
+            split_seed=seed,
+            batch_size=batch_size,
+        )
 
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
@@ -190,9 +204,6 @@ def main(
     train, val, test, in_size, y_scale = get_dataset(
         dataset, seed, train_frac, combine_val_train
     )
-
-    if dataset == "combined_satellite":
-        dataset = "satellite_combined"
 
     if val_only:
         train = val

@@ -2,7 +2,7 @@ import torch
 from pytorch_lightning.core.lightning import LightningModule
 from metrics import Metrics
 from losses import CalibrationLoss
-from distributions import GaussianDistribution
+from distributions import GaussianDistribution, GaussianLaplaceMixtureDistribution
 
 
 class LearnedAvgCalibrationModel(LightningModule):
@@ -14,21 +14,28 @@ class LearnedAvgCalibrationModel(LightningModule):
             torch.nn.ReLU(),
             torch.nn.Linear(100, 100),
             torch.nn.ReLU(),
-            torch.nn.Linear(100, 2),
+            torch.nn.Linear(100, 5),
         )
         self.loss = CalibrationLoss()
         self.y_scale = y_scale
 
     def forward(self, x):
         x = self.layers(x)
-        mu, logvar = torch.chunk(x, chunks=2, dim=1)
+        mu, logvar, loc, logscale, weight = torch.chunk(x, chunks=5, dim=1)
         var = torch.exp(logvar)
-        return mu, var
+        scale = torch.exp(logscale)
+        weight = torch.sigmoid(weight)
+        return mu, var, loc, scale, weight
+#       mu, logvar = torch.chunk(x, chunks=2, dim=1)
+ #       var = torch.exp(logvar)
+ #       return mu, var
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         params = self(x)
-        l = self.loss(y, *params)
+        params = [param.flatten() for param in params]
+        dist = GaussianLaplaceMixtureDistribution(params)
+        l = self.loss(y, dist)
         tensorboard_logs = {"train_loss": l}
         return {"loss": l, "log": tensorboard_logs}
 
@@ -39,11 +46,13 @@ class LearnedAvgCalibrationModel(LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         params = self(x)
-        loss = self.loss(y, *params)
+        params = [param.flatten() for param in params]
+        dist = GaussianLaplaceMixtureDistribution(params)
+        loss = self.loss(y, dist)
         cpu_params = tuple(
             [params[i].detach().cpu().flatten() for i in range(len(params))]
         )
-        dist = GaussianDistribution(cpu_params)
+        dist = GaussianLaplaceMixtureDistribution(cpu_params)
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
         dic = {}
         dic["val_loss"] = loss
@@ -61,13 +70,15 @@ class LearnedAvgCalibrationModel(LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         params = self(x)
+        params = [param.flatten() for param in params]
+        dist = GaussianLaplaceMixtureDistribution(params)
         dic = {
-            "test_loss": self.loss(y, *params),
+            "test_loss": self.loss(y, dist)
         }
         cpu_params = tuple(
             [params[i].detach().cpu().flatten() for i in range(len(params))]
         )
-        dist = GaussianDistribution(cpu_params)
+        dist = GaussianLaplaceMixtureDistribution(cpu_params)
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
         dic2 = metrics.get_metrics(decision_making=True)
         dic.update(dic2)

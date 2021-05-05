@@ -21,6 +21,7 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
         #              "stddev": getattr(model, "sharpness", 0),
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
+        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
         "point_calibration_error_uniform_mass": getattr(
             model, "point_calibration_error_uniform_mass", 0
@@ -75,6 +76,7 @@ def report_recalibration_results(
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
+        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
         "point_calibration_error_uniform_mass": getattr(
             model, "point_calibration_error_uniform_mass", 0
         ),
@@ -109,11 +111,14 @@ def report_recalibration_results(
     all_y0 = getattr(model, "all_y0", [])
     all_c = getattr(model, "all_c", [])
 
+    if recalibration_parameters == None:
+        recalibration_parameters = {}
+
     decision_making_results_file = (
         "results/"
         + save
-        + "_decision_{}_{}_{}_{}.csv".format(
-            dataset, loss_name, posthoc_recalibration, seed
+        + "_decision_{}_{}_{}_{}_{}.csv".format(
+            dataset, loss_name, posthoc_recalibration, recalibration_parameters.get("n_bins", 1), seed
         )
     )
 

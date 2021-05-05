@@ -98,12 +98,9 @@ class PointCalibrationLoss:
 class CalibrationLoss:
     def __init__(self):
         self.name = "calibration_loss"
-        self.sharpness_loss = GaussianNLL()
-        self.a = 1.
 
-    def __call__(self, y, mu, var):
-        dist = D.normal.Normal(mu.flatten(), torch.sqrt(var).flatten())
+    def __call__(self, y, dist):
         cdf_vals = dist.cdf(y.flatten())
-        calibration_error= torch.abs(torch.sort(cdf_vals)[0] - torch.linspace(0., 1., cdf_vals.shape[0]).to(mu.get_device())).mean()
-        return calibration_error * self.a  + self.sharpness_loss(y, mu, var) * (1 - self.a)
+        calibration_error= torch.abs(torch.sort(cdf_vals)[0] - torch.linspace(0., 1., cdf_vals.shape[0]).to(y.get_device())).mean()
+        return calibration_error
  
