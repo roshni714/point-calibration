@@ -26,7 +26,7 @@ def get_satellite_dataloaders(
     name="combined_satellite",
     split_seed=0,
     batch_size=None,
-    test_fraction=0.1,
+    test_fraction=0.3,
     combine_val_train=False,
 ):
     dataset = SatelliteDataset(name=name)
@@ -36,7 +36,7 @@ def get_satellite_dataloaders(
 
 
 def dataset_to_dataloaders(
-    dataset, split_seed=0, batch_size=None, test_fraction=0.1, combine_val_train=False
+    dataset, split_seed=0, batch_size=None, test_fraction=0.3, combine_val_train=False
 ):
 
     # Creating data indices for training and validation splits:
@@ -53,7 +53,7 @@ def dataset_to_dataloaders(
     if combine_val_train:
         val_fraction = 0.0
     else:
-        val_fraction = 0.15
+        val_fraction = 0.1
     size_val = int(val_fraction * size_train)
     index_val = index_train[:size_val]
     index_train = index_train[size_val:]
@@ -71,9 +71,7 @@ def dataset_to_dataloaders(
         train_loader = torch.utils.data.DataLoader(
             dataset, batch_size=len(index_train), sampler=train_sampler
         )
-        validation_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=len(index_val), sampler=val_sampler
-        )
+        
         test_loader = torch.utils.data.DataLoader(
             dataset, batch_size=len(index_test), sampler=test_sampler
         )
@@ -81,12 +79,15 @@ def dataset_to_dataloaders(
         train_loader = torch.utils.data.DataLoader(
             dataset, batch_size=batch_size, sampler=train_sampler
         )
-        validation_loader = torch.utils.data.DataLoader(
-            dataset, batch_size=len(index_val), sampler=val_sampler
-        )
         test_loader = torch.utils.data.DataLoader(
             dataset, batch_size=len(index_test), sampler=test_sampler
         )
+    if not combine_val_train:
+        validation_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=len(index_val), sampler=val_sampler
+        )
+    else:
+        validation_loader = None
 
     return (
         train_loader,

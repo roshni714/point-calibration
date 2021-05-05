@@ -71,6 +71,34 @@ class Metrics:
             total_err += errs.sum()
         return total_err / count
 
+    def distribution_calibration_error(self):
+        second_mom = self.dist.second_mom()
+        first_mom = self.dist.mean()
+        cdf_vals = self.ft_yt.flatten()
+
+#        n = self.discretization
+        n= 20
+        parameter_bins = [torch.linspace(torch.min(first_mom), torch.max(first_mom), n+1),
+                          torch.linspace(torch.min(second_mom), torch.max(second_mom), n+1)]
+
+        dist_cal_error = torch.Tensor([0.])
+        count = 0.
+        for i in range(n):
+            for j in range(n):
+                condition = ((first_mom <= parameter_bins[0][i+1]) & (first_mom > parameter_bins[0][i]) & (second_mom <= parameter_bins[1][j+1]) & (second_mom > parameter_bins[1][j]))
+                indices = torch.where(condition)
+                selected_cdf = cdf_vals[indices[0]]
+                if len(selected_cdf) > 0:
+                    dist_cal_error  += torch.abs(
+                        torch.sort(selected_cdf)[0]
+                        - torch.linspace(0.0, 1.0, selected_cdf.shape[0])
+                        ).mean()  # *selected_cdf.shape[0]/cdf_vals.shape[0]
+                    count += 1
+        return dist_cal_error/ (count + 1e-5)
+
+
+
+
     def point_calibration_error_uniform_mass(self):
         n_bins = self.discretization
         n_y_bins = 50
@@ -104,13 +132,14 @@ class Metrics:
                 count += 1
         return pce_mean / count
 
+   
     def point_calibration_error_uniform_mass_errs(self):
         n_bins = self.discretization
         n_y_bins = 50
         with torch.no_grad():
             labels_sorted = torch.sort(self.y.flatten())[0]
             thresholds = torch.linspace(
-                self.y[int(0.2 * len(self.y))], self.y[int(0.8 * len(self.y))], 50
+                labels_sorted[int(0.2 * len(self.y))], labels_sorted[int(0.8 * len(self.y))], 50
             )
             vals = []
             for k in range(n_y_bins):
@@ -151,6 +180,40 @@ class Metrics:
             errs[:, -1] = diff_from_uniform
 
         return errs, thresholds
+
+    def decision_unbiasedness(self):
+        n_bins = self.discretization
+        n_y_bins = self.discretization
+        with torch.no_grad():
+            labels_sorted = torch.sort(self.y.flatten())[0]
+            thresholds = torch.linspace(
+                labels_sorted[int(0.2 * len(self.y))], labels_sorted[int(0.8 * len(self.y))], self.discretization
+            )
+            
+            vals = []
+            for k in range(n_y_bins):
+                sub = self.dist.cdf(thresholds[[k]]).unsqueeze(dim=0)
+                vals.append(sub)
+            threshold_vals = torch.cat(vals, dim=0)
+            sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
+        total = 0
+        count = 0
+        pce_mean = 0
+        cdf_vals = self.dist.cdf(self.y.flatten())
+        errs = torch.zeros(n_y_bins, n_bins)
+        alphas = torch.linspace(0.10, 0.9, self.discretization)
+        for i, a in enumerate(alphas):
+            for j, t in enumerate(thresholds):
+                term1 = torch.mean(((self.y >= t) & (threshold_vals[j] > a)).float())
+                term2 = torch.mean(((self.y < t) & (threshold_vals[j] <= a)).float())
+                pred2 = torch.mean((threshold_vals[j] <= a) * (threshold_vals[j]))
+                pred1 = torch.mean((threshold_vals[j] > a) * (1 - threshold_vals[j]))
+                current_errs = torch.abs(term1 - pred1) + torch.abs(term2 - pred2)
+                errs[j, i] = current_errs
+
+        idx = (errs==torch.max(errs)).nonzero()[0]
+        return errs, torch.Tensor([thresholds[idx[0]]]), alphas[idx[1]], alphas[idx[1]] + alphas[1] - alphas[0]
+
 
     def rmse(self):
         mse_loss = torch.nn.MSELoss(reduction="mean")
@@ -196,6 +259,7 @@ class Metrics:
             "ece": self.ece(),
             "point_calibration_error_uniform_mass": uniform_mass_pce,
             "point_calibration_error": self.point_calibration_error(),
+            "distribution_calibration_error": self.distribution_calibration_error(),
             #                "rmse": self.rmse(),
             "true_vs_pred_loss": decision_err,
             "decision_loss": decision_loss,

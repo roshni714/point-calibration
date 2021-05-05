@@ -20,12 +20,12 @@ echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
 
 # constants for commands
 
-OUTPUT_PATH = "/atlas/u/rsahoo/point-calibration/slurm_iterative_point"
+OUTPUT_PATH = "/atlas/u/rsahoo/point-calibration/slurm_point"
 
 
 def generate_baseline_models():
-    datasets = ["tanzania", "zimbabwe", "uganda", "malawi", "mozambique", "rwanda"]
-    #    datasets = ["crime"]
+#    datasets = ["tanzania", "zimbabwe", "uganda", "malawi", "mozambique", "rwanda"]
+    datasets = ["mimic_los"]
     seeds = [0, 1, 2, 3, 4, 5]
     losses = ["gaussian_laplace_mixture_nll", "gaussian_nll"]
 
@@ -44,7 +44,7 @@ def generate_baseline_models():
                     )
                     new_cmd = (
                         base_cmd
-                        + "--seed {} --loss {} --save baseline --epochs 100 --dataset {}".format(
+                        + "--seed {} --loss {} --save mimic --epochs 100 --dataset {}".format(
                             seed, loss, dataset
                         )
                     )
@@ -54,11 +54,11 @@ def generate_baseline_models():
 
 def evaluate_average_calibration(dataset):
     seeds = [0, 1, 2, 3, 4, 5]
-    losses = ["gaussian_laplace_mixture_nll", "gaussian_nll"]
+    losses = ["gaussian_nll", "gaussian_laplace_mixture_nll"]
 
     for seed in seeds:
         for loss in losses:
-            exp_id = "mar28_benchmark_{}_{}_{}_{}".format(
+            exp_id = "apr24_benchmark_{}_{}_{}_{}".format(
                 dataset, loss, "average", seed
             )
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
@@ -70,7 +70,7 @@ def evaluate_average_calibration(dataset):
                     ),
                     file=f,
                 )
-                if dataset in ["protein", "naval", "combined_satellite"]:
+                if dataset in ["protein", "naval", "mimic_los"]:
                     new_cmd = (
                         base_cmd
                         + "--seed {} --loss {} --save average  --dataset {} --posthoc_recalibration average --val_only".format(
@@ -91,40 +91,32 @@ def evaluate_average_calibration(dataset):
 
 def evaluate_iterative_point_calibration(dataset):
     seeds = [0, 1, 2, 3, 4, 5]
-    losses = ["gaussian_laplace_mixture_nll", "gaussian_nll"]
-    n_bins = [5, 10, 20]
+    losses = ["gaussian_nll", "gaussian_laplace_mixture_nll"]
+    n_bins = [10, 20, 30]
     num_layers = [5]
 
     for num_layer in num_layers:
         for n_bin in n_bins:
-            print(n_bins)
-            for seed in seeds:
-                for loss in losses:
-                    exp_id = "apr24_benchmark_{}_{}_{}_{}_{}_{}".format(
-                        dataset, loss, "iterative_point", n_bin, num_layer, seed
+            exp_id = "apr24_benchmark_{}_{}_{}_{}".format(
+                        dataset, "iterative_point", n_bin, num_layer
                     )
-                    script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
-                    base_cmd = (
-                        "python /atlas/u/rsahoo/point-calibration/recalibrate.py main "
+            script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+            base_cmd = (
+                       "python /atlas/u/rsahoo/point-calibration/recalibrate.py main "
                     )
-                    with open(script_fn, "w") as f:
-                        print(
-                            SBATCH_PREFACE.format(
-                                exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                            ),
-                            file=f,
-                        )
-                        if dataset in ["protein", "naval", "combined_satellite"]:
-                            new_cmd = (
-                                base_cmd
-                                + "--seed {} --loss {} --save iterative_point_final  --dataset {} --posthoc_recalibration iterative_point --val_only --n_bins {} --num_layers {}".format(
+            with open(script_fn, "w") as f:
+                print(SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),file=f)
+                for seed in seeds:
+                    for loss in losses:
+                        if dataset in ["protein", "naval", "mimic_los"]:
+                            new_cmd = (base_cmd
+                                + "--seed {} --loss {} --save iterative_point  --dataset {} --posthoc_recalibration iterative_point --val_only --n_bins {} --num_layers {}".format(
                                     seed, loss, dataset, n_bin, num_layer
                                 )
                             )
                         else:
-                            new_cmd = (
-                                base_cmd
-                                + "--seed {} --loss {} --save iterative_point_final  --dataset {} --posthoc_recalibration iterative_point --combine_val_train --n_bins {} --num_layers {}".format(
+                            new_cmd = (base_cmd
+                                + "--seed {} --loss {} --save iterative_point  --dataset {} --posthoc_recalibration iterative_point --combine_val_train --n_bins {} --num_layers {}".format(
                                     seed, loss, dataset, n_bin, num_layer
                                 )
                             )
@@ -138,7 +130,7 @@ def evaluate_no_calibration(dataset):
 
     for seed in seeds:
         for loss in losses:
-            exp_id = "mar28_benchmark_{}_{}_{}_{}".format(dataset, loss, None, seed)
+            exp_id = "apr24_benchmark_{}_{}_{}_{}".format(dataset, loss, None, seed)
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             base_cmd = "python /atlas/u/rsahoo/point-calibration/recalibrate.py main "
             with open(script_fn, "w") as f:
@@ -148,7 +140,7 @@ def evaluate_no_calibration(dataset):
                     ),
                     file=f,
                 )
-                if dataset in ["protein", "naval", "combined_satellite"]:
+                if dataset in ["protein", "naval", "mimic_los"]:
                     new_cmd = (
                         base_cmd
                         + "--seed {} --loss {} --save baseline  --dataset {} --val_only".format(
@@ -205,11 +197,11 @@ def evaluate_distribution_calibration(dataset):
 
     for loss in losses:
         if loss == "gaussian_nll":
-            n_bins = [5, 10, 20, 50]
+            n_bins = [10, 20, 30]
         elif loss == "gaussian_laplace_mixture_nll":
-            n_bins = [5, 10, 20]
+            n_bins = [10, 20, 30]
         for n_bin in n_bins:
-            exp_id = "apr1_benchmark_{}_{}_{}_{}".format(
+            exp_id = "apr24_benchmark_{}_{}_{}_{}".format(
                 dataset, loss, "distribution", n_bin
             )
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
@@ -222,17 +214,17 @@ def evaluate_distribution_calibration(dataset):
                     file=f,
                 )
                 for seed in seeds:
-                    if dataset in ["protein", "naval", "combined_satellite"]:
+                    if dataset in ["protein", "naval", "mimic_los"]:
                         new_cmd = (
                             base_cmd
-                            + "--seed {} --loss {} --save distribution_2 --dataset {} --posthoc_recalibration distribution --val_only --n_bins {}".format(
+                            + "--seed {} --loss {} --save distribution --dataset {} --posthoc_recalibration distribution --val_only --n_bins {}".format(
                                 seed, loss, dataset, n_bin
                             )
                         )
                     else:
                         new_cmd = (
                             base_cmd
-                            + "--seed {} --loss {} --save distribution_2 --dataset {} --posthoc_recalibration distribution --combine_val_train --n_bins {}".format(
+                            + "--seed {} --loss {} --save distribution --dataset {} --posthoc_recalibration distribution --combine_val_train --n_bins {}".format(
                                 seed, loss, dataset, n_bin
                             )
                         )
@@ -467,13 +459,14 @@ def evaluate_point_calibration_single_mlp_combine(dataset):
                     print("sleep 1", file=f)
 
 
-# generate_baseline_models()
+#generate_baseline_models()
 # evaluate_distribution_calibration("crime")
 # for dataset in ["naval", "crime", "satellite", "kin8nm", "protein"]:
 #    evaluate_distribution_calibration(dataset)
 
 # for dataset in ["tanzania", "uganda", "rwanda", "zimbabwe", "malawi", "mozambique", "combined_satellite"]:
-for dataset in ["protein", "naval", "combined_satellite", "crime"]:
+for dataset in ["naval", "protein", "mimic_los", "combined_satellite", "crime", "energy"]:
     evaluate_iterative_point_calibration(dataset)
-#    evaluate_distribution_calibration(dataset)
+#    evaluate_average_calibration(dataset)
 #    evaluate_no_calibration(dataset)
+#    evaluate_distribution_calibration(dataset)
