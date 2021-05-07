@@ -4,14 +4,14 @@ import numpy as np
 import math
 from metrics import Metrics
 from distributions import FlexibleDistribution
-from composition import RecalibrationLayer
+from composition import AlphaRecalibrationLayer
 from tqdm import tqdm
 
 RANGE = [-10, 10]
 RESOLUTION = 8000
 
 
-class IterativePointRecalibrationModel:
+class IterativeAlphaPointRecalibrationModel:
     def __init__(self, datasets, y_scale, n_bins, num_layers):
         (
             self.train_dist,
@@ -27,8 +27,6 @@ class IterativePointRecalibrationModel:
         self.num_layers = num_layers
 
     def training_step(self):
-        bin_size = int(self.y_train.shape[0] / self.n_bins)
-
         current_dist = self.train_dist
         model = []
         for i in tqdm(range(self.num_layers)):
@@ -36,46 +34,32 @@ class IterativePointRecalibrationModel:
                 current_dist,
                 self.y_train,
                 self.y_scale,
-                discretization=self.n_bins_test,
+                discretization=self.n_bins,
             )
-#            errs, threshold, alpha, alpha_plus  = metrics.decision_unbiasedness()
-#            print(threshold, alpha)
-            errs, thresholds, _ = metrics.point_calibration_error_uniform_mass_errs()
-            threshold = torch.Tensor([thresholds[torch.argmax(errs.sum(dim=1))]])
-            print(torch.max(errs.mean(dim=1)))
+            errs, thresholds, alphas = metrics.point_calibration_error_uniform_mass_errs()
+            idx = (errs==torch.max(errs)).nonzero()[0]
+            threshold = torch.Tensor([thresholds[idx[0]]])
+            l_alpha = alphas[idx[0]][idx[1]]
+            if idx[1] + 1 < len(alpha):
+                u_alpha = alphas[idx[0]][idx[1] + 1]
+            else:
+                u_alpha = 1.
+
+            print(torch.max(errs))
             print(torch.mean(errs))
             print(threshold)
             current_train_forecasts = current_dist.cdf(self.y_train.flatten())
             quantile_threshold = current_dist.cdf(threshold).flatten()
-            sorted_quantiles, sorted_indices = quantile_threshold.sort()
-#            all_subgroups = [sorted_indices[torch.where(sorted_quantiles <= alpha)], sorted_indices[torch.where((sorted_quantiles <= alpha_plus) & (sorted_quantiles > alpha))], sorted_indices[torch.where(sorted_quantiles > alpha_plus)]]
-            all_subgroups = torch.split(sorted_indices, bin_size)
-            iso_reg_models = []
-            alphas = []
-            for j in range(len(all_subgroups)):
-#                if len(all_subgroups[j]) == 0 and j == 0:
-#                    alphas.append(0.)
-#                elif len(all_subgroups[j]) == 0 and j == 1:
-#                    alphas.append(1.)
-#                else:
-                alphas.append(quantile_threshold[all_subgroups[j][-1]])
-
-#                if j == 0 or j == len(all_subgroups)-1:
-#                    iso_reg = IsotonicRegression().fit([0., 1.], [0., 1.])
-#                else:
-                true_vals = current_train_forecasts[all_subgroups[j]]
-                sorted_vals = torch.sort(true_vals.flatten())[0].detach().cpu().numpy()
-                Y = np.array(
-                        [(k + 1) / (len(sorted_vals) + 2) for k in range(len(sorted_vals))]
+            bin_indices = torch.where( (quantile_threshold <= u_alpha) & (quantile_threshold > l_alpha))
+            alphas = [l_alpha, u_alpha]
+            true_vals = current_train_forecasts[bin_indices]
+            sorted_vals = torch.sort(true_vals.flatten())[0].detach().cpu().numpy()
+             Y = np.array([(k + 1) / (len(sorted_vals) + 2) for k in range(len(sorted_vals))]
                     )
-                Y = np.insert(np.insert(Y, 0, 0), len(Y) + 1, 1)
-                sorted_forecasts = np.insert(
-                        np.insert(sorted_vals, 0, 0), len(sorted_vals) + 1, 1
-                    )
-                iso_reg = IsotonicRegression().fit(sorted_forecasts.flatten(), Y)
-                iso_reg_models.append(iso_reg)
-
-            r = RecalibrationLayer(iso_reg_models, alphas, threshold)
+             Y = np.insert(np.insert(Y, 0, 0), len(Y) + 1, 1)
+             sorted_forecasts = np.insert(np.insert(sorted_vals, 0, 0), len(sorted_vals) + 1, 1)
+            iso_reg = IsotonicRegression().fit(sorted_forecasts.flatten(), Y)
+            r = AlphaRecalibrationLayer(iso_reg_model, alphas, threshold)
             model.append(r)
             current_dist = output_distribution_single_layer(current_dist, r)
 

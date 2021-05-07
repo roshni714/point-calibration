@@ -154,6 +154,9 @@ class Metrics:
         bin_size = int(cdf_vals.shape[0] / n_bins)
         errs = torch.zeros(n_y_bins, n_bins)
         all_subgroups = torch.split(sorted_indices, bin_size, dim=1)
+        import pdb
+        pdb.set_trace()
+
         if cdf_vals.shape[0] % n_bins == 0:
             for i, selected_indices in enumerate(all_subgroups):
                 selected_cdf = cdf_vals[selected_indices]

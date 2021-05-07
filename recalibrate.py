@@ -8,6 +8,7 @@ from modules import (
     GaussianLaplaceMixtureNLLModel,
     NoRecalibrationModel,
     IterativePointRecalibrationModel,
+    IterativeAlphaPointRecalibrationModel,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
@@ -154,6 +155,7 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets=None)
         "Distribution" in model.__class__.__name__
         or "Average" in model.__class__.__name__
         or "IterativePoint" in model.__class__.__name__
+        or "IterativeAlphaPoint" in model.__class__.__name__
     ):
         model.training_step()
         if val:
@@ -229,11 +231,10 @@ def main(
             "flow_type": flow_type,
             "learning_rate": learning_rate,
         }
-    elif "iterative_point" == posthoc_recalibration:
+    elif "iterative_point" == posthoc_recalibration or "iterative_alpha_point":
         recalibration_parameters = {"n_bins": n_bins, "num_layers": num_layers}
     elif (
         "distribution" == posthoc_recalibration
-        or "iterative_point" == posthoc_recalibration
     ):
         recalibration_parameters = {"n_bins": n_bins}
     else:
@@ -314,6 +315,21 @@ def main(
         recalibration_model = train_recalibration_model(
             recalibration_model, 1, logname=None, actual_datasets=(train, val, test)
         )
+    elif posthoc_recalibration == "iterative_alpha_point":
+        dist_datasets = get_baseline_model_predictions(
+            model, dist_class, train, val, test, cuda=False
+        )
+        del model
+        if n_bins == None:
+            n_bins = int(math.sqrt(dist_datasets[1].shape[0]))
+            recalibration_parameters["n_bins"] = n_bins
+        recalibration_model = IterativeAlphaPointRecalibrationModel(
+            dist_datasets, y_scale=y_scale, n_bins=n_bins, num_layers=num_layers
+        )
+        recalibration_model = train_recalibration_model(
+            recalibration_model, 1, logname=None, actual_datasets=(train, val, test)
+        )
+
     elif posthoc_recalibration == "distribution":
         dist_datasets = get_baseline_model_predictions(
             model, dist_class, train, val, test, cuda=False

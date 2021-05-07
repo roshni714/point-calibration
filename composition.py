@@ -91,3 +91,35 @@ class RecalibrationLayer:
                     )
 
         return out.numpy()
+
+
+class AlphaRecalibrationLayer:
+    def __init__(self, outer_layer, outer_alphas, threshold):
+        self.outer_layer = outer_layer
+        self.outer_alphas = torch.Tensor(outer_alphas)
+        self.threshold = threshold
+
+    def cdf(self, inner, y):
+
+        quantile_cdfs = inner.cdf(self.threshold)
+        bin_indices = torch.where( (quantile_cdfs > outer_alphas[0]) & (quantile_cdfs =< outer_alphas[1]))
+        current = inner.cdf(y)
+
+        if (y.shape[0] == 1 and y.shape[1] == 1) or (inner.mean().shape[0] == y.shape[0]):
+            out = torch.zeros(current.shape)
+            y_vals = current[bin_indices].detach().cpu().numpy()
+            out = current.clone()
+            out[bin_indices] = self.outer_layer.predict(y_vals)
+        else:
+            if inner.mean().shape[0] == 1:
+                if len(bin_indices) > 0:
+                    out = torch.tensor(
+                        self.outer_layer.predict(
+                            current.detach().cpu().numpy().flatten()
+                        )
+                    )
+                else:
+                    out = torch.tensor(current.detach().cpu().numpy().flatten()
+                    )
+
+        return out.numpy()
