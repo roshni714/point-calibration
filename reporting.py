@@ -21,7 +21,8 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
         #              "stddev": getattr(model, "sharpness", 0),
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
-        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
+        "threshold_calibration_error": getattr(model, "threshold_calibration_error", 0),
+#        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
         "point_calibration_error_uniform_mass": getattr(
             model, "point_calibration_error_uniform_mass", 0
@@ -75,6 +76,9 @@ def report_recalibration_results(
         #              "stddev": getattr(model, "sharpness", 0),
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
+        "threshold_calibration_error_less": getattr(model, "threshold_calibration_error_less", 0),
+        "threshold_calibration_error_greater": getattr(model, "threshold_calibration_error_greater", 0),
+        "threshold_calibration_error_both": getattr(model, "threshold_calibration_error_both", 0),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
         "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
         "point_calibration_error_uniform_mass": getattr(
@@ -117,8 +121,8 @@ def report_recalibration_results(
     decision_making_results_file = (
         "results/"
         + save
-        + "_decision_{}_{}_{}_{}_{}.csv".format(
-            dataset, loss_name, posthoc_recalibration, recalibration_parameters.get("n_bins", 1), seed
+        + "_decision_{}_{}_{}_{}_{}_{}.csv".format(
+            dataset, loss_name, posthoc_recalibration, recalibration_parameters.get("n_bins", 1), recalibration_parameters.get("num_layers", 0), seed
         )
     )
 

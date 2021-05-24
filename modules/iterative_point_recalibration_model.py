@@ -42,8 +42,8 @@ class IterativePointRecalibrationModel:
 #            print(threshold, alpha)
             errs, thresholds, _ = metrics.point_calibration_error_uniform_mass_errs()
             threshold = torch.Tensor([thresholds[torch.argmax(errs.sum(dim=1))]])
-            print(torch.max(errs.mean(dim=1)))
-            print(torch.mean(errs))
+            print(errs)
+            print(torch.max(errs), torch.mean(errs))
             print(threshold)
             current_train_forecasts = current_dist.cdf(self.y_train.flatten())
             quantile_threshold = current_dist.cdf(threshold).flatten()
@@ -86,7 +86,7 @@ class IterativePointRecalibrationModel:
         params = self.train_dist.params
         dist = output_distribution_all_layers(self.train_dist, self.model)
         metrics = Metrics(
-            dist, self.y_train, self.y_scale, discretization=self.n_bins_test
+            dist, self.y_train, self.y_scale
         )
         dic = metrics.get_metrics(decision_making=True)
         setattr(

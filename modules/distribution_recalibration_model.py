@@ -23,7 +23,6 @@ class DistributionRecalibrationModel:
         ) = datasets
         self.y_scale = y_scale
         self.n_bins = n_bins
-        self.n_bins_test = int(math.sqrt(self.y_train.shape[0]))
 
     def training_step(self):
         train_forecasts = self.train_dist.cdf(self.y_train.flatten())
@@ -127,7 +126,7 @@ class DistributionRecalibrationModel:
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
         metrics = Metrics(
-            dist, self.y_test, self.y_scale, discretization=self.n_bins_test
+            dist, self.y_test, self.y_scale
         )
 
         dic = metrics.get_metrics(decision_making=True)
@@ -214,10 +213,10 @@ class DistributionRecalibrationModel:
         dist = FlexibleDistribution((y, ranking))
         metrics = Metrics(dist, self.y_val, self.y_scale, discretization=self.n_bins)
         dic = metrics.get_metrics(decision_making=True)
-        setattr(
-            self, "val_point_calibration_error", dic["point_calibration_error"].item()
-        )
-        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+#        setattr(
+#            self, "val_point_calibration_error", dic["point_calibration_error"].item()
+#        )
+#        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
         return dic
 
     def test_epoch_end(self, outputs):

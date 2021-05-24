@@ -1,23 +1,34 @@
 import torch
+import torchvision.models as models
 from pytorch_lightning.core.lightning import LightningModule
 from metrics import Metrics
 from losses import GaussianLaplaceMixtureNLL
 from distributions import GaussianLaplaceMixtureDistribution
-
+from modules.cnn import CNN
 
 class GaussianLaplaceMixtureNLLModel(LightningModule):
-    def __init__(self, input_size, y_scale):
+    def __init__(self, input_size, y_scale, resnet=False):
         super().__init__()
         torch.set_default_tensor_type(torch.DoubleTensor)
-        self.layers = torch.nn.Sequential(
-            torch.nn.Linear(input_size, 100),
-            torch.nn.ReLU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ReLU(),
-            torch.nn.Linear(100, 5),
-        )
+        if not resnet:
+            print("NO RESNET")
+            self.layers = torch.nn.Sequential(
+                torch.nn.Linear(input_size, 100),
+                torch.nn.ReLU(),
+                torch.nn.Linear(100, 100),
+                torch.nn.ReLU(),
+                torch.nn.Linear(100, 5),
+            )
+        else:
+            print("RESNET")
+            self.layers = models.resnet18()
+            self.layers.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            self.layers.fc = torch.nn.Linear(512, 5)
+#            self.layers = CNN(n_output=5)
+
         self.loss = GaussianLaplaceMixtureNLL()
         self.y_scale = y_scale
+
 
     def forward(self, x):
         x = self.layers(x)

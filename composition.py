@@ -49,9 +49,9 @@ class RecalibrationLayer:
         self.threshold = threshold
 
     def cdf(self, inner, y):
-
         quantile_cdfs = inner.cdf(self.threshold)
         quantile_sorted, sorted_indices = torch.sort(quantile_cdfs)
+        
         current = inner.cdf(y)
         indices = torch.searchsorted(self.outer_alphas, quantile_sorted)
 
@@ -94,27 +94,46 @@ class RecalibrationLayer:
 
 
 class AlphaRecalibrationLayer:
-    def __init__(self, outer_layer, outer_alphas, threshold):
+    def __init__(self, outer_layer, outer_alpha, threshold):
         self.outer_layer = outer_layer
-        self.outer_alphas = torch.Tensor(outer_alphas)
+        self.outer_alphas = torch.Tensor([outer_alpha])
         self.threshold = threshold
 
     def cdf(self, inner, y):
 
         quantile_cdfs = inner.cdf(self.threshold)
-        bin_indices = torch.where( (quantile_cdfs > outer_alphas[0]) & (quantile_cdfs =< outer_alphas[1]))
+        quantile_sorted, sorted_indices = torch.sort(quantile_cdfs)
         current = inner.cdf(y)
+        indices = torch.searchsorted(self.outer_alphas, quantile_sorted)
 
-        if (y.shape[0] == 1 and y.shape[1] == 1) or (inner.mean().shape[0] == y.shape[0]):
+        if y.shape[0] == 1 and y.shape[1] == 1:
             out = torch.zeros(current.shape)
-            y_vals = current[bin_indices].detach().cpu().numpy()
-            out = current.clone()
-            out[bin_indices] = self.outer_layer.predict(y_vals)
+            for j in torch.unique(indices):
+                placeholder = indices == j
+                y_vals = current[sorted_indices[placeholder]].detach().cpu().numpy()
+                if j <= 1:
+                    out[sorted_indices[placeholder]] = torch.tensor(
+                        self.outer_layer[j].predict(y_vals)
+                    )
+                else:
+                    out[sorted_indices[placeholder]] = torch.tensor(y_vals)
+        elif inner.mean().shape[0] == y.shape[0]:
+            out = torch.zeros(current.shape)
+            for j in torch.unique(indices):
+                placeholder = indices == j
+                y_vals = current[sorted_indices[placeholder]].detach().cpu().numpy()
+                if j <= 1 :
+                    out[sorted_indices[placeholder]] = torch.tensor(
+                        self.outer_layer[j].predict(y_vals)
+                    )
+                else:
+                    out[sorted_indices[placeholder]] = torch.tensor(y_vals)
         else:
             if inner.mean().shape[0] == 1:
-                if len(bin_indices) > 0:
+                j = indices[0]
+                if j <=1:
                     out = torch.tensor(
-                        self.outer_layer.predict(
+                        self.outer_layer[j].predict(
                             current.detach().cpu().numpy().flatten()
                         )
                     )
@@ -123,3 +142,6 @@ class AlphaRecalibrationLayer:
                     )
 
         return out.numpy()
+
+
+

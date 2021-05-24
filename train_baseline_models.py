@@ -8,7 +8,7 @@ import argh
 from reporting import report_baseline_results
 
 
-def get_dataset(dataset, seed, train_frac, batch_size):
+def get_dataset(dataset, seed, train_frac, batch_size, resnet):
     if batch_size == 0:
         batch_size = None
     if dataset in [
@@ -22,7 +22,7 @@ def get_dataset(dataset, seed, train_frac, batch_size):
         "zimbabwe",
     ]:
         train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(
-            name=dataset, split_seed=seed, batch_size=batch_size
+            name=dataset, split_seed=seed, batch_size=batch_size, resnet=resnet
         )
     elif dataset in ["cubic"]:
         train, val, test, y_scale, in_size = get_simulated_dataloaders(
@@ -56,15 +56,23 @@ def get_dataset(dataset, seed, train_frac, batch_size):
 
     return train, val, test, in_size, y_scale
 
-def objective(dataset, loss, seed, epochs, train_frac, batch_size):
-    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, batch_size)
+def objective(dataset, loss, seed, epochs, train_frac, batch_size, resnet):
+    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, batch_size, resnet)
 
-    checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
-        "models/{}_{}_seed_{}/".format(dataset, loss, seed),
-        monitor="val_loss",
-        save_top_k=1,
-        mode="min",
-    )
+    if not resnet:
+        checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
+            "models/{}_{}_seed_{}/".format(dataset, loss, seed),
+            monitor="val_loss",
+            save_top_k=1,
+            mode="min",
+        )
+    else:
+        checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
+            "models/{}_{}_resnet_seed_{}/".format(dataset, loss, seed),
+            monitor="val_loss",
+            save_top_k=1,
+            mode="min",
+        )
 
     logger = TensorBoardLogger(
         save_dir="runs", name="logs/{}_{}_seed_{}".format(dataset, loss, seed)
@@ -79,7 +87,7 @@ def objective(dataset, loss, seed, epochs, train_frac, batch_size):
     else:
         module = GaussianLaplaceMixtureNLLModel
 
-    model = module(input_size=in_size[0], y_scale=y_scale)
+    model = module(input_size=in_size[0], y_scale=y_scale, resnet=resnet)
     trainer = Trainer(
         gpus=1,
         checkpoint_callback=checkpoint_callback,
@@ -104,7 +112,7 @@ def objective(dataset, loss, seed, epochs, train_frac, batch_size):
 
 # Loss
 @argh.arg("--loss", default="gaussian_nll")
-
+@argh.arg("--resnet", default=False)
 # Epochs
 @argh.arg("--epochs", default=40)
 def main(
@@ -114,10 +122,12 @@ def main(
     loss="gaussian_nll",
     epochs=40,
     train_frac=1.0,
-    batch_size=128
+    batch_size=128,
+    resnet=True
 ):
+    print("resnet", resnet)
     model = objective(
-        dataset, loss=loss, seed=seed, epochs=epochs, train_frac=train_frac, batch_size=batch_size
+        dataset, loss=loss, seed=seed, epochs=epochs, train_frac=train_frac, batch_size=batch_size, resnet=resnet
     )
     report_baseline_results(model, dataset, train_frac, loss, seed, save)
 

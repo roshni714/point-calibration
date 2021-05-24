@@ -37,10 +37,10 @@ class PointRecalibrationModel(LightningModule):
             self.test_dist,
             self.y_test,
         ) = datasets
+        self.n_bins_test = self.y_train.shape[0]
         self.train_loss = PointCalibrationLoss(discretization=n_bins, y=self.y_train)
         if self.val_dist:
             self.val_loss = PointCalibrationLoss(discretization=n_bins, y=self.y_val)
-        self.n_bins_test = int(math.sqrt(self.y_train.shape[0]))
         self.test_loss = PointCalibrationLoss(
             discretization=self.n_bins_test, y=self.y_test
         )
@@ -95,7 +95,6 @@ class PointRecalibrationModel(LightningModule):
             comp,
             self.y_test.to(self.device),
             self.y_scale,
-            discretization=self.n_bins_test,
         )
         dic = {
             "test_loss": self.test_loss(self.y_test.to(self.device), comp),

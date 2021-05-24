@@ -1,21 +1,28 @@
 import torch
+import torchvision.models as models
 from pytorch_lightning.core.lightning import LightningModule
 from metrics import Metrics
 from losses import GaussianNLL
 from distributions import GaussianDistribution
-
+from modules.cnn import CNN
 
 class GaussianNLLModel(LightningModule):
-    def __init__(self, input_size, y_scale):
+    def __init__(self, input_size, y_scale, resnet=False):
         super().__init__()
         torch.set_default_tensor_type(torch.DoubleTensor)
-        self.layers = torch.nn.Sequential(
-            torch.nn.Linear(input_size, 100),
-            torch.nn.ReLU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ReLU(),
-            torch.nn.Linear(100, 2),
-        )
+        if not resnet:
+            self.layers = torch.nn.Sequential(
+                torch.nn.Linear(input_size, 100),
+                torch.nn.ReLU(),
+                torch.nn.Linear(100, 100),
+                torch.nn.ReLU(),
+                torch.nn.Linear(100, 2),
+            )
+        else:
+#            self.layers = CNN(n_output=2)
+            self.layers = models.resnet18()
+            self.layers.fc = torch.nn.Linear(512, 2)
+            self.layers.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.loss = GaussianNLL()
         self.y_scale = y_scale
 

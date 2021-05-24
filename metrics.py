@@ -26,6 +26,50 @@ class Metrics:
     def sharpness(self):
         return self.dist.dist_std.mean().detach().cpu()
 
+    def point_calibration_errs(self, min_bin=10):
+        y_sorted = torch.sort(self.y.flatten())[0]
+        n_bins = self.discretization
+        n_y_bins = 50
+        sampled_y0 = torch.FloatTensor(n_y_bins).uniform_(
+            torch.min(self.y), torch.max(self.y)
+        )
+        sampled_alphas = torch.linspace(0, 1, n_bins)
+        right_alphas = sampled_alphas[1:].reshape(-1, 1).flatten()
+        left_alphas = sampled_alphas[:-1].reshape(-1, 1).flatten()
+
+        cdf_vals = self.ft_yt.flatten()
+        total_err = torch.zeros(n_y_bins, n_bins)
+        count = 0
+        for k in range(n_y_bins):
+            if "Composition" in self.dist.__class__.__name__:
+                threshold_vals = (
+                    self.dist.cdf(sampled_y0[k].to(self.y.get_device()))
+                    .detach()
+                    .cpu()
+                    .reshape(1, -1, 1)
+                )
+            else:
+                threshold_vals = self.dist.cdf(sampled_y0[k].view(-1, 1)).reshape(
+                    1, -1, 1
+                )
+            selected_indices = (threshold_vals < right_alphas) & (
+                threshold_vals >= left_alphas
+            )  # 2 x 2100 x 199
+            num_selected = selected_indices.type(torch.int).sum(dim=1)  # 2 x 199
+            indices = torch.where(num_selected >= min_bin)
+            total_err[k][indices[0]] = -1.
+            for x in range(len(indices[0])):
+                i = indices[0][x]
+                j = indices[1][x]
+                selected_cdf = cdf_vals[selected_indices[i, :, j]]
+                diff_from_uniform = torch.abs(
+                    torch.sort(selected_cdf)[0]
+                    - torch.linspace(0.0, 1.0, selected_cdf.shape[0])
+                ).mean()  # *selected_cdf.shape[0]/cdf_vals.shape[0]
+                total_err[k, x] = diff_from_uniform
+        return total_err, sampled_y0, sampled_alphas.repeat(n_y_bins, 1)
+
+
     def point_calibration_error(self, min_bin=10):
         y_sorted = torch.sort(self.y.flatten())[0]
         n_bins = self.discretization
@@ -154,8 +198,13 @@ class Metrics:
         bin_size = int(cdf_vals.shape[0] / n_bins)
         errs = torch.zeros(n_y_bins, n_bins)
         all_subgroups = torch.split(sorted_indices, bin_size, dim=1)
-        import pdb
-        pdb.set_trace()
+        alphas = torch.zeros(n_y_bins, n_bins+1)
+        all_sorted_thresh = torch.split(sorted_thresholds, bin_size, dim=1)  
+
+        for i in range(n_y_bins):
+            for j in range(n_bins):
+                alphas[i, j] = all_sorted_thresh[j][i][0]
+            alphas[i, -1] = all_sorted_thresh[-1][i][-1]
 
         if cdf_vals.shape[0] % n_bins == 0:
             for i, selected_indices in enumerate(all_subgroups):
@@ -166,7 +215,7 @@ class Metrics:
                 ).mean(dim=1)
                 errs[:, i] = diff_from_uniform
         else:
-            remove_last = all_subgroups[: -(len(all_subgroups) - n_bins)]
+            remove_last = all_subgroups[: n_bins-1]
             for i, selected_indices in enumerate(remove_last):
                 selected_cdf = cdf_vals[selected_indices]
                 diff_from_uniform = torch.abs(
@@ -174,23 +223,24 @@ class Metrics:
                     - torch.linspace(0.0, 1.0, selected_cdf.shape[1])
                 ).mean(dim=1)
                 errs[:, i] = diff_from_uniform
-            last = torch.hstack(all_subgroups[-(len(all_subgroups) - n_bins) :])
+            last = torch.hstack(all_subgroups[n_bins-1:])
             selected_cdf = cdf_vals[last]
             diff_from_uniform = torch.abs(
                 torch.sort(selected_cdf)[0]
                 - torch.linspace(0.0, 1.0, selected_cdf.shape[1])
             ).mean(dim=1)
             errs[:, -1] = diff_from_uniform
+#            print(errs)
 
-        return errs, thresholds
+        return errs, thresholds, alphas
 
     def decision_unbiasedness(self):
         n_bins = self.discretization
-        n_y_bins = self.discretization
+        n_y_bins = 50
         with torch.no_grad():
             labels_sorted = torch.sort(self.y.flatten())[0]
             thresholds = torch.linspace(
-                labels_sorted[int(0.2 * len(self.y))], labels_sorted[int(0.8 * len(self.y))], self.discretization
+                labels_sorted[int(0.2 * len(self.y))], labels_sorted[int(0.8 * len(self.y))], 50
             )
             
             vals = []
@@ -199,24 +249,53 @@ class Metrics:
                 vals.append(sub)
             threshold_vals = torch.cat(vals, dim=0)
             sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
-        total = 0
-        count = 0
-        pce_mean = 0
         cdf_vals = self.dist.cdf(self.y.flatten())
         errs = torch.zeros(n_y_bins, n_bins)
-        alphas = torch.linspace(0.10, 0.9, self.discretization)
+        alphas = torch.linspace(0.05, 0.95, self.discretization)
         for i, a in enumerate(alphas):
             for j, t in enumerate(thresholds):
-                term1 = torch.mean(((self.y >= t) & (threshold_vals[j] > a)).float())
-                term2 = torch.mean(((self.y < t) & (threshold_vals[j] <= a)).float())
-                pred2 = torch.mean((threshold_vals[j] <= a) * (threshold_vals[j]))
-                pred1 = torch.mean((threshold_vals[j] > a) * (1 - threshold_vals[j]))
-                current_errs = torch.abs(term1 - pred1) + torch.abs(term2 - pred2)
-                errs[j, i] = current_errs
+                selected_cdf = cdf_vals[torch.where(threshold_vals[j] <= a)]
+                selected_cdf_2 = cdf_vals[torch.where(threshold_vals[j] > a)]
+                if len(selected_cdf) > 200 and len(selected_cdf_2) > 200:
+                    diff_from_uniform = torch.abs(torch.sort(selected_cdf)[0] - torch.linspace(0., 1., selected_cdf.shape[0])).mean() + torch.abs(torch.sort(selected_cdf_2)[0] - torch.linspace(0., 1., selected_cdf_2.shape[0])).mean()
+                    errs[j, i] = diff_from_uniform
 
-        idx = (errs==torch.max(errs)).nonzero()[0]
-        return errs, torch.Tensor([thresholds[idx[0]]]), alphas[idx[1]], alphas[idx[1]] + alphas[1] - alphas[0]
+        return errs, thresholds, alphas.repeat(n_y_bins, 1)
+#        idx = (errs==torch.max(errs)).nonzero()[0]
+#        return errs, torch.Tensor([thresholds[idx[0]]]), alphas[idx[1]], alphas[idx[1]] + alphas[1] - alphas[0]
 
+    def threshold_calibration_error(self):
+        n_bins = self.discretization
+        n_y_bins = 50
+        with torch.no_grad():
+            labels_sorted = torch.sort(self.y.flatten())[0]
+            thresholds = torch.linspace(
+                labels_sorted[int(0.2 * len(self.y))], labels_sorted[int(0.8 * len(self.y))], 50
+            )
+            
+            vals = []
+            for k in range(n_y_bins):
+                sub = self.dist.cdf(thresholds[[k]]).unsqueeze(dim=0)
+                vals.append(sub)
+            threshold_vals = torch.cat(vals, dim=0)
+            sorted_thresholds, sorted_indices = torch.sort(threshold_vals, dim=1)
+        cdf_vals = self.dist.cdf(self.y.flatten())
+        errs1 = torch.zeros(n_y_bins, n_bins)
+        errs2 = torch.zeros(n_y_bins, n_bins)
+
+        alphas = torch.linspace(0.05, 0.95, self.discretization)
+        for i, a in enumerate(alphas):
+            for j, t in enumerate(thresholds):
+                selected_cdf = cdf_vals[torch.where(threshold_vals[j] <= a)]
+                selected_cdf_2 = cdf_vals[torch.where(threshold_vals[j] > a)]
+                if len(selected_cdf) >20 and len(selected_cdf_2)>20:
+                    diff_from_uniform1 = torch.abs(torch.sort(selected_cdf)[0] - torch.linspace(0., 1., selected_cdf.shape[0])).mean()
+                    errs1[j, i] = diff_from_uniform1
+                    diff_from_uniform2 = torch.abs(torch.sort(selected_cdf_2)[0] - torch.linspace(0., 1., selected_cdf_2.shape[0])).mean()
+                    errs2[j, i] = diff_from_uniform2
+
+        idx = torch.where(errs1 != 0)
+        return torch.mean(errs1[idx]), torch.mean(errs2[idx]), torch.mean(errs1[idx] + errs2[idx])
 
     def rmse(self):
         mse_loss = torch.nn.MSELoss(reduction="mean")
@@ -226,7 +305,7 @@ class Metrics:
     def decision_loss(self):
         #        labels_sorted = self.y.flatten().sort()[0]
         #        sampled_y0 = labels_sorted[((torch.rand(50) * 0.8 + 0.1) * self.y.shape[0]).type(torch.long)].detach().cpu()
-        sampled_y0 = torch.linspace(self.y.min(), self.y.max(), 50)
+        sampled_y0 = torch.linspace(self.y.min(), min(10, self.y.max()), 50)
         sampled_alpha = torch.linspace(0.05, 0.95, 50)
         decision_makers = []
         for i in range(len(sampled_alpha)):
@@ -242,6 +321,8 @@ class Metrics:
 
     def get_metrics(self, decision_making=False):
         uniform_mass_pce = self.point_calibration_error_uniform_mass()
+
+        less, greater, both = self.threshold_calibration_error()
         if decision_making:
             (
                 decision_err,
@@ -259,13 +340,16 @@ class Metrics:
             all_y0 = torch.tensor([0.0])
             all_c = torch.tensor([0.0])
         return {
-            "ece": self.ece(),
+#            "ece": self.ece(),
             "point_calibration_error_uniform_mass": uniform_mass_pce,
             "point_calibration_error": self.point_calibration_error(),
-            "distribution_calibration_error": self.distribution_calibration_error(),
+            "threshold_calibration_error_less": less,
+            "threshold_calibration_error_greater": greater,
+            "threshold_calibration_error_both": both,
+#            "distribution_calibration_error": self.distribution_calibration_error(),
             #                "rmse": self.rmse(),
-            "true_vs_pred_loss": decision_err,
-            "decision_loss": decision_loss,
+#            "true_vs_pred_loss": decision_err,
+#            "decision_loss": decision_loss,
             "all_err": all_err,
             "all_loss": all_loss,
             "all_y0": all_y0,
