@@ -547,6 +547,7 @@ if __name__ == "__main__":
         "power-plant": _load_powerplant,
         "yacht": _load_yacht,
         "energy-efficiency": _load_energy_efficiency,
+        "energy": _load_app_energy,
         "kin8nm": _load_kin8nm,
         "naval": _load_naval,
         "protein": _load_protein,

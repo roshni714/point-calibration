@@ -70,6 +70,7 @@ def dataset_to_dataloaders(
 
     # Creating data indices for training and validation splits:
     dataset_size = len(dataset)
+    print(dataset_size)
     indices = list(range(dataset_size))
     rs = np.random.RandomState(split_seed)
     permutation = rs.permutation(dataset_size)
@@ -129,5 +130,12 @@ def dataset_to_dataloaders(
 
 
 if __name__ == "__main__":
-
-    dataset = SatelliteCombinedDataset()
+    dataset = SatelliteImageDataset("combined_satellite")
+    dataset_to_dataloaders(
+    dataset,
+    split_seed=0,
+    batch_size=None,
+    test_fraction=0.3,
+    combine_val_train=False,
+    resnet=True,
+)

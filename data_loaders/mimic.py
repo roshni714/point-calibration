@@ -1,7 +1,6 @@
 import pandas as pd
 from data_loaders.utils import get_dataloaders
 import numpy as np
-from sklearn.datasets import load_boston
 from torch.utils.data import random_split, DataLoader, TensorDataset
 import torch
 import os
@@ -204,3 +203,7 @@ def get_mimic_dataloaders(
         train, val, test, batch_size
     )
     return train_loader, val_loader, test_loader, in_size, target_size, y_train_scale
+
+if __name__ == "__main__":
+    print(_load_mimic_los()[0].shape)
+
