@@ -13,3 +13,6 @@ python download_datasets.py
 chmod +x run_experiments.sh
 ./run_experiments
 ```
+
+We also provide the commands for reproducing the MIMIC-III and DHS Asset Wealth experiments. The MIMIC-III
+dataset can be obtained upon request [here](https://physionet.org/content/mimiciii/1.4/).
