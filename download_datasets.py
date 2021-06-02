@@ -3,37 +3,23 @@ import os
 import zipfile
 
 MAIN_DIREC = "data_loaders/data/uci/"
-os.mkdir("data_loaders/data")
-os.mkdir(MAIN_DIREC)
+if not os.path.isdir("data_loaders/data"):
+    os.mkdir("data_loaders/data")
+if not os.path.isdir("data_loaders/data/uci/"):
+    os.mkdir(MAIN_DIREC)
 
 directories = [
-    "wine-quality",
-    "concrete",
-    "yacht",
-    "energy-efficiency",
     "protein",
-    "kin8nm",
     "energy",
 ]
 
 simple_urls = [
-    "https://raw.githubusercontent.com/yaringal/DropoutUncertaintyExps/master/UCI_Datasets/wine-quality-red/data/data.txt",
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/concrete/compressive/Concrete_Data.xls",
-    "http://archive.ics.uci.edu/ml/machine-learning-databases/00243/yacht_hydrodynamics.data",
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx",
     "https://archive.ics.uci.edu/ml/machine-learning-databases/00265/CASP.csv",
-    "https://raw.githubusercontent.com/yaringal/DropoutUncertaintyExps/6eb4497628d12b0f300f4b4f6bdc386bebad565c/UCI_Datasets/kin8nm/data/data.txt",
     "https://github.com/Srceh/DistCal/blob/master/Dataset/Appliances_energy_prediction.csv?raw=true",
 ]
 
 file_names = [
-    "wine_data_new.txt",
-    "Concrete_Data.xls",
-    "yacht_hydrodynamics.data",
-    "ENB2012_data.xlsx",
     "CASP.csv",
-    "data.txt",
-    "beijing.csv",
     "energydata_complete.csv",
 ]
 
@@ -46,11 +32,9 @@ for i in range(len(directories)):
         r.content
     )
 
-zip_directories = ["power-plant", "naval", "song"]
+zip_directories = ["naval"]
 zip_urls = [
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/00294/CCPP.zip",
     "https://archive.ics.uci.edu/ml/machine-learning-databases/00316/UCI%20CBM%20Dataset.zip",
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/00203/YearPredictionMSD.txt.zip",
 ]
 
 zip_file_names = ["/CCPP.zip", "/UCI_CBM_Dataset.zip", "/YearPredictionMSD.zip"]
