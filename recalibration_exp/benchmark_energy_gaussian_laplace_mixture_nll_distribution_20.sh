@@ -12,10 +12,10 @@
 
 echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
 
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 0 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 1 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 2 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 3 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 4 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
-python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 5 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results_new
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 0 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 1 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 2 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 3 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 4 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
+python /atlas/u/rsahoo/point-calibration/recalibrate.py main --seed 5 --loss gaussian_laplace_mixture_nll --save distribution --dataset energy --posthoc_recalibration distribution --val_only --n_bins 20 --save_dir results
 sleep 1
