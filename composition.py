@@ -51,7 +51,7 @@ class RecalibrationLayer:
     def cdf(self, inner, y):
         quantile_cdfs = inner.cdf(self.threshold)
         quantile_sorted, sorted_indices = torch.sort(quantile_cdfs)
-        
+
         current = inner.cdf(y)
         indices = torch.searchsorted(self.outer_alphas, quantile_sorted)
 
@@ -87,8 +87,7 @@ class RecalibrationLayer:
                         )
                     )
                 else:
-                    out = torch.tensor(current.detach().cpu().numpy().flatten()
-                    )
+                    out = torch.tensor(current.detach().cpu().numpy().flatten())
 
         return out.numpy()
 
@@ -122,7 +121,7 @@ class AlphaRecalibrationLayer:
             for j in torch.unique(indices):
                 placeholder = indices == j
                 y_vals = current[sorted_indices[placeholder]].detach().cpu().numpy()
-                if j <= 1 :
+                if j <= 1:
                     out[sorted_indices[placeholder]] = torch.tensor(
                         self.outer_layer[j].predict(y_vals)
                     )
@@ -131,17 +130,13 @@ class AlphaRecalibrationLayer:
         else:
             if inner.mean().shape[0] == 1:
                 j = indices[0]
-                if j <=1:
+                if j <= 1:
                     out = torch.tensor(
                         self.outer_layer[j].predict(
                             current.detach().cpu().numpy().flatten()
                         )
                     )
                 else:
-                    out = torch.tensor(current.detach().cpu().numpy().flatten()
-                    )
+                    out = torch.tensor(current.detach().cpu().numpy().flatten())
 
         return out.numpy()
-
-
-

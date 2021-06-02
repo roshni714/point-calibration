@@ -26,7 +26,7 @@ class GaussianLaplaceMixtureDistribution:
         )
 
     def second_mom(self):
-        return self.std() **2 + self.mean() ** 2
+        return self.std() ** 2 + self.mean() ** 2
 
     def std(self):
         gaussian_part = self.weight * (
@@ -83,7 +83,7 @@ class GaussianDistribution:
         return self.gaussian_comp.scale
 
     def second_mom(self):
-        return self.std() **2 + self.mean() ** 2
+        return self.std() ** 2 + self.mean() ** 2
 
     def to(self, device):
         self.gaussian_comp = D.Normal(

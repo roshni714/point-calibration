@@ -17,7 +17,7 @@ from data_loaders import (
     get_uci_dataloaders,
     get_satellite_dataloaders,
     get_recalibration_dataloaders,
-    get_mimic_dataloaders
+    get_mimic_dataloaders,
 )
 from torch.utils.data import TensorDataset
 from distributions import GaussianDistribution, GaussianLaplaceMixtureDistribution
@@ -41,9 +41,9 @@ def get_dataset(dataset, seed, train_frac, combine_val_train, resnet=False):
         train, val, test, in_size, output_size, y_scale = get_satellite_dataloaders(
             name=dataset,
             split_seed=seed,
-            batch_size=batch_size,
+            batch_size=32,
             combine_val_train=combine_val_train,
-            resnet=resnet
+            resnet=resnet,
         )
     elif dataset in ["cubic"]:
         train, val, test, y_scale, in_size = get_simulated_dataloaders(
@@ -59,11 +59,18 @@ def get_dataset(dataset, seed, train_frac, combine_val_train, resnet=False):
             split_seed=seed,
             test_fraction=0.3,
             batch_size=None,
-            train_frac=train_frac
+            train_frac=train_frac,
         )
 
     elif dataset in ["credit"]:
-        train, val, test, in_size, output_size, y_scale = get_credit_regression_dataloader(
+        (
+            train,
+            val,
+            test,
+            in_size,
+            output_size,
+            y_scale,
+        ) = get_credit_regression_dataloader(
             split_seed=seed,
             batch_size=batch_size,
         )
@@ -88,11 +95,10 @@ def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=Fal
         model.to(device)
         print("cuda")
     model.eval()
-   
 
     def dataset_dist(data):
         ys = []
-        all_params = [] 
+        all_params = []
         for batch in data:
             x, y = batch
             params = model(x)
@@ -103,10 +109,58 @@ def get_baseline_model_predictions(model, dist_class, train, val, test, cuda=Fal
                 y = y.flatten()
             else:
                 params = [param.detach().cpu().flatten() for param in params]
-                y= y.flatten().detach().cpu()
-            
+                y = y.flatten().detach().cpu()
+
             dist = dist_class(tuple(params))
             return dist, y
+
+    train_dist, y_train = dataset_dist(train)
+    print("got train dist")
+    if val:
+        val_dist, y_val = dataset_dist(val)
+    else:
+        val_dist = None
+        y_val = None
+    test_dist, y_test = dataset_dist(test)
+    return train_dist, y_train, val_dist, y_val, test_dist, y_test
+
+
+def get_baseline_model_predictions_resnet(
+    model, dist_class, train, val, test, cuda=False
+):
+    print("getting baseline model preds resnet")
+    if cuda:
+        device = torch.device("cuda")
+        model.to(device)
+        print("cuda")
+    model.eval()
+
+    def dataset_dist(data):
+        ys = []
+        all_params = []
+        counter = 0
+        for batch in data:
+            x, y = batch
+            params = model(x)
+            if cuda:
+                x = x.to(device)
+                y = y.to(device)
+                params = [param.flatten().detach() for param in params]
+                y = y.flatten()
+            else:
+                params = [param.detach().cpu().flatten() for param in params]
+                y = y.flatten().detach().cpu()
+            all_params.append(params)
+            ys.append(y)
+            counter += 1
+        print("HELLO")
+        print("combining")
+        params = []
+        for i in range(len(all_params[0])):
+            params.append(torch.cat([all_params[j][i] for j in range(counter)]))
+        y = torch.cat([ys[j] for j in range(counter)])
+        dist = dist_class(tuple(params))
+        return dist, y
 
     train_dist, y_train = dataset_dist(train)
     print("got train dist")
@@ -178,6 +232,19 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets=None)
         model.test_epoch_end([test_outputs])
     return model
 
+
+def get_base_preds(model, dist_class, train, val, test, cuda, resnet):
+    if resnet == False:
+        dist_datasets = get_baseline_model_predictions(
+            model, dist_class, train, val, test, cuda=cuda
+        )
+    else:
+        dist_datasets = get_baseline_model_predictions_resnet(
+            model, dist_class, train, val, test, cuda=cuda
+        )
+    return dist_datasets
+
+
 @argh.arg("--resnet", default=False)
 @argh.arg("--seed", default=0)
 @argh.arg("--dataset", default="protein")
@@ -188,6 +255,7 @@ def train_recalibration_model(model, epochs, logname=None, actual_datasets=None)
 @argh.arg("--combine_val_train", default=False)
 @argh.arg("--val_only", default=False)
 @argh.arg("--cuda", default=False)
+@argh.arg("--save_dir", default="results")
 ## Recalibration parameters
 @argh.arg("--num_layers", default=0)
 @argh.arg("--n_dim", default=100)
@@ -210,8 +278,9 @@ def main(
     learning_rate=1e-3,
     combine_val_train=False,
     val_only=False,
+    save_dir="results",
     cuda=False,
-    resnet=False
+    resnet=False,
 ):
 
     train, val, test, in_size, y_scale = get_dataset(
@@ -234,7 +303,7 @@ def main(
     if resnet:
         model_path = "models/{}_{}_resnet_seed_{}.ckpt".format(dataset, loss, seed)
     else:
-        model_path= "models/{}_{}_seed_{}.ckpt".format(dataset, loss, seed)
+        model_path = "models/{}_{}_seed_{}.ckpt".format(dataset, loss, seed)
 
     if "point" == posthoc_recalibration:
         recalibration_parameters = {
@@ -247,9 +316,7 @@ def main(
         }
     elif "iterative_point" == posthoc_recalibration or "iterative_alpha_point":
         recalibration_parameters = {"n_bins": n_bins, "num_layers": num_layers}
-    elif (
-        "distribution" == posthoc_recalibration
-    ):
+    elif "distribution" == posthoc_recalibration:
         recalibration_parameters = {"n_bins": n_bins}
     else:
         recalibration_parameters = None
@@ -288,9 +355,10 @@ def main(
                 learning_rate,
                 seed,
             )
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=cuda
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
+
         print("got baseline preds")
         if n_bins == None:
             n_bins = int(math.sqrt(dist_datasets[1].shape[0]))
@@ -312,8 +380,8 @@ def main(
             recalibration_model, epochs, logname=logname, actual_datasets=dataloaders
         )
     elif posthoc_recalibration == "average":
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=False
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
         del model
         recalibration_model = AverageRecalibrationModel(dist_datasets, y_scale=y_scale)
@@ -321,8 +389,8 @@ def main(
             recalibration_model, 1, logname=None, actual_datasets=(train, val, test)
         )
     elif posthoc_recalibration == "iterative_point":
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=False
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
         del model
         if n_bins == None:
@@ -335,8 +403,8 @@ def main(
             recalibration_model, 1, logname=None, actual_datasets=(train, val, test)
         )
     elif posthoc_recalibration == "iterative_alpha_point":
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=False
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
         del model
         if n_bins == None:
@@ -350,8 +418,8 @@ def main(
         )
 
     elif posthoc_recalibration == "distribution":
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=False
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
         if n_bins == None and loss == "gaussian_nll":
             n_bins = int(math.sqrt(dist_datasets[1].shape[0]))
@@ -367,8 +435,8 @@ def main(
             recalibration_model, 1, logname=None, actual_datasets=(train, val, test)
         )
     elif posthoc_recalibration == None:
-        dist_datasets = get_baseline_model_predictions(
-            model, dist_class, train, val, test, cuda=False
+        dist_datasets = get_base_preds(
+            model, dist_class, train, val, test, cuda=False, resnet=resnet
         )
         recalibration_model = NoRecalibrationModel(dist_datasets, y_scale=y_scale)
         recalibration_model = train_recalibration_model(
@@ -384,6 +452,7 @@ def main(
         posthoc_recalibration,
         recalibration_parameters,
         save,
+        save_dir,
     )
     return recalibration_model
 

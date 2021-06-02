@@ -26,15 +26,16 @@ class LearnedPointCalibrationModel(LightningModule):
         scale = torch.exp(logscale)
         weight = torch.sigmoid(weight)
         return mu, var, loc, scale, weight
-#        mu, logvar = torch.chunk(x, chunks=2, dim=1)
-#        var = torch.exp(logvar)
-#        return mu, var
+
+    #        mu, logvar = torch.chunk(x, chunks=2, dim=1)
+    #        var = torch.exp(logvar)
+    #        return mu, var
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         params = self(x)
         params = [param.flatten() for param in params]
-#        dist = GaussianDistribution(params)
+        #        dist = GaussianDistribution(params)
         dist = GaussianLaplaceMixtureDistribution(params)
         l = self.loss(y, dist)
         tensorboard_logs = {"train_loss": l}
@@ -48,13 +49,13 @@ class LearnedPointCalibrationModel(LightningModule):
         x, y = batch
         params = self(x)
         params = [param.flatten() for param in params]
- #        dist = GaussianDistribution(params)
+        #        dist = GaussianDistribution(params)
         dist = GaussianLaplaceMixtureDistribution(params)
         loss = self.loss(y, dist)
         cpu_params = tuple(
             [params[i].detach().cpu().flatten() for i in range(len(params))]
         )
- #        dist = GaussianDistribution(cpu_params)
+        #        dist = GaussianDistribution(cpu_params)
         dist = GaussianLaplaceMixtureDistribution(cpu_params)
 
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
@@ -75,7 +76,7 @@ class LearnedPointCalibrationModel(LightningModule):
         x, y = batch
         params = self(x)
         params = [param.flatten() for param in params]
- #        dist = GaussianDistribution(params)
+        #        dist = GaussianDistribution(params)
         dist = GaussianLaplaceMixtureDistribution(params)
         loss = self.loss(y, dist)
 
@@ -85,7 +86,7 @@ class LearnedPointCalibrationModel(LightningModule):
         cpu_params = tuple(
             [params[i].detach().cpu().flatten() for i in range(len(params))]
         )
- #        dist = GaussianDistribution(cpu_params)
+        #        dist = GaussianDistribution(cpu_params)
         dist = GaussianLaplaceMixtureDistribution(cpu_params)
         metrics = Metrics(dist, y.detach().cpu(), self.y_scale)
         dic2 = metrics.get_metrics(decision_making=True)

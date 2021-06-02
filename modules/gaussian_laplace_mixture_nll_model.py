@@ -6,6 +6,7 @@ from losses import GaussianLaplaceMixtureNLL
 from distributions import GaussianLaplaceMixtureDistribution
 from modules.cnn import CNN
 
+
 class GaussianLaplaceMixtureNLLModel(LightningModule):
     def __init__(self, input_size, y_scale, resnet=False):
         super().__init__()
@@ -22,13 +23,14 @@ class GaussianLaplaceMixtureNLLModel(LightningModule):
         else:
             print("RESNET")
             self.layers = models.resnet18()
-            self.layers.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            self.layers.conv1 = torch.nn.Conv2d(
+                1, 64, kernel_size=7, stride=2, padding=3, bias=False
+            )
             self.layers.fc = torch.nn.Linear(512, 5)
-#            self.layers = CNN(n_output=5)
+        #            self.layers = CNN(n_output=5)
 
         self.loss = GaussianLaplaceMixtureNLL()
         self.y_scale = y_scale
-
 
     def forward(self, x):
         x = self.layers(x)

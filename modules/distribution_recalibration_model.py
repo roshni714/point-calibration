@@ -44,7 +44,7 @@ class DistributionRecalibrationModel:
             param_bins = torch.linspace(
                 torch.min(self.train_dist.params[i]),
                 torch.max(self.train_dist.params[i]),
-                n+1,
+                n + 1,
             )
             parameter_bins.append(param_bins)
             grid_shape.append(n)
@@ -125,9 +125,7 @@ class DistributionRecalibrationModel:
 
         ranking = torch.tensor(cdfs)
         dist = FlexibleDistribution((y, ranking))
-        metrics = Metrics(
-            dist, self.y_test, self.y_scale
-        )
+        metrics = Metrics(dist, self.y_test, self.y_scale)
 
         dic = metrics.get_metrics(decision_making=True)
         return dic
@@ -213,10 +211,10 @@ class DistributionRecalibrationModel:
         dist = FlexibleDistribution((y, ranking))
         metrics = Metrics(dist, self.y_val, self.y_scale, discretization=self.n_bins)
         dic = metrics.get_metrics(decision_making=True)
-#        setattr(
-#            self, "val_point_calibration_error", dic["point_calibration_error"].item()
-#        )
-#        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+        #        setattr(
+        #            self, "val_point_calibration_error", dic["point_calibration_error"].item()
+        #        )
+        #        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
         return dic
 
     def test_epoch_end(self, outputs):

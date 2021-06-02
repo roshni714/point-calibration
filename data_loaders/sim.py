@@ -55,7 +55,13 @@ def get_sklearn_synthetic(n_datapoints):
     )
 
 
-def get_simulated_dataloaders(dataset_type="cubic", split_seed=0, test_fraction=0.3, train_frac=1., batch_size=128):
+def get_simulated_dataloaders(
+    dataset_type="cubic",
+    split_seed=0,
+    test_fraction=0.3,
+    train_frac=1.0,
+    batch_size=128,
+):
     r"""
     Returns Pytorch dataloaders for a simulated regression problem:
        y = X + eps where eps is sampled from a noise distribution.

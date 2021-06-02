@@ -1,6 +1,17 @@
 from pytorch_lightning import Trainer, callbacks
-from modules import GaussianNLLModel, GaussianLaplaceMixtureNLLModel, LearnedAvgCalibrationModel, LearnedPointCalibrationModel
-from data_loaders import get_uci_dataloaders, get_satellite_dataloaders, get_simulated_dataloaders, get_credit_regression_dataloader, get_mimic_dataloaders
+from modules import (
+    GaussianNLLModel,
+    GaussianLaplaceMixtureNLLModel,
+    LearnedAvgCalibrationModel,
+    LearnedPointCalibrationModel,
+)
+from data_loaders import (
+    get_uci_dataloaders,
+    get_satellite_dataloaders,
+    get_simulated_dataloaders,
+    get_credit_regression_dataloader,
+    get_mimic_dataloaders,
+)
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
 import os
@@ -33,7 +44,14 @@ def get_dataset(dataset, seed, train_frac, batch_size, resnet):
             train_frac=train_frac,
         )
     elif dataset in ["credit"]:
-        train, val, test, in_size, output_size, y_scale = get_credit_regression_dataloader(
+        (
+            train,
+            val,
+            test,
+            in_size,
+            output_size,
+            y_scale,
+        ) = get_credit_regression_dataloader(
             split_seed=seed,
             batch_size=batch_size,
         )
@@ -43,7 +61,7 @@ def get_dataset(dataset, seed, train_frac, batch_size, resnet):
             split_seed=seed,
             test_fraction=0.3,
             batch_size=batch_size,
-            train_frac=train_frac
+            train_frac=train_frac,
         )
     else:
         train, val, test, in_size, output_size, y_scale = get_uci_dataloaders(
@@ -56,8 +74,11 @@ def get_dataset(dataset, seed, train_frac, batch_size, resnet):
 
     return train, val, test, in_size, y_scale
 
+
 def objective(dataset, loss, seed, epochs, train_frac, batch_size, resnet):
-    train, val, test, in_size, y_scale = get_dataset(dataset, seed, train_frac, batch_size, resnet)
+    train, val, test, in_size, y_scale = get_dataset(
+        dataset, seed, train_frac, batch_size, resnet
+    )
 
     if not resnet:
         checkpoint_callback = callbacks.model_checkpoint.ModelCheckpoint(
@@ -82,7 +103,7 @@ def objective(dataset, loss, seed, epochs, train_frac, batch_size, resnet):
         module = GaussianNLLModel
     elif loss == "calibration_loss":
         module = LearnedAvgCalibrationModel
-    elif loss ==  "point_calibration_loss":
+    elif loss == "point_calibration_loss":
         module = LearnedPointCalibrationModel
     else:
         module = GaussianLaplaceMixtureNLLModel
@@ -123,11 +144,17 @@ def main(
     epochs=40,
     train_frac=1.0,
     batch_size=128,
-    resnet=True
+    resnet=True,
 ):
     print("resnet", resnet)
     model = objective(
-        dataset, loss=loss, seed=seed, epochs=epochs, train_frac=train_frac, batch_size=batch_size, resnet=resnet
+        dataset,
+        loss=loss,
+        seed=seed,
+        epochs=epochs,
+        train_frac=train_frac,
+        batch_size=batch_size,
+        resnet=resnet,
     )
     report_baseline_results(model, dataset, train_frac, loss, seed, save)
 

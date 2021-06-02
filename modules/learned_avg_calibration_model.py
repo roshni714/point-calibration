@@ -26,9 +26,10 @@ class LearnedAvgCalibrationModel(LightningModule):
         scale = torch.exp(logscale)
         weight = torch.sigmoid(weight)
         return mu, var, loc, scale, weight
-#       mu, logvar = torch.chunk(x, chunks=2, dim=1)
- #       var = torch.exp(logvar)
- #       return mu, var
+
+    #       mu, logvar = torch.chunk(x, chunks=2, dim=1)
+    #       var = torch.exp(logvar)
+    #       return mu, var
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -72,9 +73,7 @@ class LearnedAvgCalibrationModel(LightningModule):
         params = self(x)
         params = [param.flatten() for param in params]
         dist = GaussianLaplaceMixtureDistribution(params)
-        dic = {
-            "test_loss": self.loss(y, dist)
-        }
+        dic = {"test_loss": self.loss(y, dist)}
         cpu_params = tuple(
             [params[i].detach().cpu().flatten() for i in range(len(params))]
         )

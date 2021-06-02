@@ -33,7 +33,8 @@ class GaussianLaplaceMixtureNLL:
         likelihood = likelihood.clamp(min=1e-20)
         nll = -torch.log(likelihood)
         return torch.mean(nll)
-       
+
+
 class PointCalibrationLoss:
     def __init__(self, discretization, y=None):
         self.name = "pointwise_calibration_loss"
@@ -95,12 +96,15 @@ class PointCalibrationLoss:
 
         return torch.mean(errs)
 
+
 class CalibrationLoss:
     def __init__(self):
         self.name = "calibration_loss"
 
     def __call__(self, y, dist):
         cdf_vals = dist.cdf(y.flatten())
-        calibration_error= torch.abs(torch.sort(cdf_vals)[0] - torch.linspace(0., 1., cdf_vals.shape[0]).to(y.get_device())).mean()
+        calibration_error = torch.abs(
+            torch.sort(cdf_vals)[0]
+            - torch.linspace(0.0, 1.0, cdf_vals.shape[0]).to(y.get_device())
+        ).mean()
         return calibration_error
- 

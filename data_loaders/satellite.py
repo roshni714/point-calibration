@@ -7,6 +7,7 @@ import pandas as pd
 from torchvision import transforms
 import math
 
+
 class SatelliteDataset(Dataset):
     def __init__(self, name):
         vb_dir = os.path.dirname(__file__)
@@ -22,6 +23,7 @@ class SatelliteDataset(Dataset):
     def __len__(self):
         return len(self.f.keys())
 
+
 class SatelliteImageDataset(Dataset):
     def __init__(self, name):
         vb_dir = os.path.dirname(__file__)
@@ -30,13 +32,11 @@ class SatelliteImageDataset(Dataset):
         self.y_scale = pd.read_csv("{}/data.csv".format(data_dir))["label"].std()
 
     def __getitem__(self, idx):
-        image = (torch.Tensor(self.f[str(idx)]["image"].value) / 255)
+        image = torch.Tensor(self.f[str(idx)]["image"].value) / 255
         image_shape = int(math.sqrt(image.shape[0]))
         image = image.reshape(image_shape, image_shape).unsqueeze(0)
 
-        return image, torch.Tensor(
-            [self.f[str(idx)]["label"].value]
-        )
+        return image, torch.Tensor([self.f[str(idx)]["label"].value])
 
     def __len__(self):
         return len(self.f.keys())
@@ -48,7 +48,7 @@ def get_satellite_dataloaders(
     batch_size=None,
     test_fraction=0.3,
     combine_val_train=False,
-    resnet=True
+    resnet=True,
 ):
     if resnet:
         dataset = SatelliteImageDataset(name=name)
@@ -60,7 +60,12 @@ def get_satellite_dataloaders(
 
 
 def dataset_to_dataloaders(
-    dataset, split_seed=0, batch_size=None, test_fraction=0.3, combine_val_train=False, resnet=True
+    dataset,
+    split_seed=0,
+    batch_size=None,
+    test_fraction=0.3,
+    combine_val_train=False,
+    resnet=True,
 ):
 
     # Creating data indices for training and validation splits:
@@ -93,26 +98,25 @@ def dataset_to_dataloaders(
 
     if not batch_size:
         train_loader = torch.utils.data.DataLoader(
-                dataset, batch_size=len(index_train), sampler=train_sampler
+            dataset, batch_size=len(index_train), sampler=train_sampler
         )
-        
+
         test_loader = torch.utils.data.DataLoader(
             dataset, batch_size=len(index_test), sampler=test_sampler
         )
     else:
         train_loader = torch.utils.data.DataLoader(
-                dataset, batch_size=batch_size, sampler=train_sampler
-            )
+            dataset, batch_size=batch_size, sampler=train_sampler
+        )
         test_loader = torch.utils.data.DataLoader(
-                dataset, batch_size=batch_size, sampler=test_sampler
-            )
+            dataset, batch_size=batch_size, sampler=test_sampler
+        )
     if not combine_val_train:
         validation_loader = torch.utils.data.DataLoader(
-                dataset, batch_size=len(index_val), sampler=val_sampler
-            )  
+            dataset, batch_size=len(index_val), sampler=val_sampler
+        )
     else:
         validation_loader = None
-
 
     return (
         train_loader,

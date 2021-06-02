@@ -7,6 +7,8 @@ from modules.learned_point_calibration_model import LearnedPointCalibrationModel
 from modules.average_recalibration_model import AverageRecalibrationModel
 from modules.distribution_recalibration_model import DistributionRecalibrationModel
 from modules.iterative_point_recalibration_model import IterativePointRecalibrationModel
-from modules.iterative_alpha_point_recalibration_model import IterativeAlphaPointRecalibrationModel
+from modules.iterative_alpha_point_recalibration_model import (
+    IterativeAlphaPointRecalibrationModel,
+)
 
 from modules.no_recalibration_model import NoRecalibrationModel

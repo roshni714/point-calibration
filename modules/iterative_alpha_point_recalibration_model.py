@@ -26,7 +26,7 @@ class IterativeAlphaPointRecalibrationModel:
         self.num_layers = num_layers
 
     def training_step(self):
-        bin_size = int(self.y_train.shape[0]/self.n_bins) 
+        bin_size = int(self.y_train.shape[0] / self.n_bins)
         current_dist = self.train_dist
         model = []
         indices = torch.ones((50, self.n_bins))
@@ -38,9 +38,9 @@ class IterativeAlphaPointRecalibrationModel:
                 discretization=self.n_bins,
             )
             errs, thresholds, alphas = metrics.decision_unbiasedness()
-            idx = torch.where(errs==torch.max(errs[indices.bool()]))
+            idx = torch.where(errs == torch.max(errs[indices.bool()]))
             choice = (torch.rand(1) * len(idx[0])).long()
-#            indices[idx[0][choice], idx[1][choice]] = 0.
+            #            indices[idx[0][choice], idx[1][choice]] = 0.
             t_idx = idx[0][choice]
             threshold = torch.Tensor([thresholds[t_idx]])
             errs2, _, _ = metrics.point_calibration_error_uniform_mass_errs()
@@ -49,15 +49,21 @@ class IterativeAlphaPointRecalibrationModel:
             current_train_forecasts = current_dist.cdf(self.y_train.flatten())
             quantile_threshold = current_dist.cdf(threshold).flatten()
             alpha = alphas[idx][choice].item()
-            all_subgroups = (torch.where(quantile_threshold <= alpha), torch.where(quantile_threshold > alpha))
+            all_subgroups = (
+                torch.where(quantile_threshold <= alpha),
+                torch.where(quantile_threshold > alpha),
+            )
             iso_reg_models = []
             for j in range(len(all_subgroups)):
                 true_vals = current_train_forecasts[all_subgroups[j]]
                 sorted_vals = torch.sort(true_vals.flatten())[0].detach().cpu().numpy()
-                Y = np.array([(k + 1) / (len(sorted_vals) + 2) for k in range(len(sorted_vals))]
-                    )
+                Y = np.array(
+                    [(k + 1) / (len(sorted_vals) + 2) for k in range(len(sorted_vals))]
+                )
                 Y = np.insert(np.insert(Y, 0, 0), len(Y) + 1, 1)
-                sorted_forecasts = np.insert(np.insert(sorted_vals, 0, 0), len(sorted_vals) + 1, 1)
+                sorted_forecasts = np.insert(
+                    np.insert(sorted_vals, 0, 0), len(sorted_vals) + 1, 1
+                )
                 iso_reg = IsotonicRegression().fit(sorted_forecasts.flatten(), Y)
                 iso_reg_models.append(iso_reg)
             r = AlphaRecalibrationLayer(iso_reg_models, alpha, threshold)
@@ -69,19 +75,17 @@ class IterativeAlphaPointRecalibrationModel:
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
         params = self.train_dist.params
         dist = output_distribution_all_layers(self.train_dist, self.model)
-        metrics = Metrics(
-            dist, self.y_train, self.y_scale
-        )
+        metrics = Metrics(dist, self.y_train, self.y_scale)
         dic = metrics.get_metrics(decision_making=True)
-#        setattr(
-#            self,
-#            "train_point_calibration_error_uniform_mass",
-#            dic["point_calibration_error_uniform_mass"].item(),
-#        )
-#        setattr(
-#            self, "train_point_calibration_error", dic["point_calibration_error"].item()
-#        )
-#        setattr(self, "train_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+        #        setattr(
+        #            self,
+        #            "train_point_calibration_error_uniform_mass",
+        #            dic["point_calibration_error_uniform_mass"].item(),
+        #        )
+        #        setattr(
+        #            self, "train_point_calibration_error", dic["point_calibration_error"].item()
+        #        )
+        #        setattr(self, "train_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
 
         print("Done train")
 
@@ -91,9 +95,7 @@ class IterativeAlphaPointRecalibrationModel:
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
         params = self.test_dist.params
         dist = output_distribution_all_layers(self.test_dist, self.model)
-        metrics = Metrics(
-            dist, self.y_test, self.y_scale
-        )
+        metrics = Metrics(dist, self.y_test, self.y_scale)
         dic = metrics.get_metrics(decision_making=True)
         return dic
 
@@ -112,19 +114,17 @@ class IterativeAlphaPointRecalibrationModel:
         y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
         params = self.val_dist.params
         dist = output_distribution_all_layers(self.val_dist, self.model)
-        metrics = Metrics(
-            dist, self.y_val, self.y_scale
-        )
+        metrics = Metrics(dist, self.y_val, self.y_scale)
         dic = metrics.get_metrics(decision_making=True)
-#        setattr(
-#            self,
-#            "val_point_calibration_error_uniform_mass",
-#            dic["point_calibration_error_uniform_mass"].item(),
-#        )
-#        setattr(
-#            self, "val_point_calibration_error", dic["point_calibration_error"].item()
-#        )
-#        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
+        #        setattr(
+        #            self,
+        #            "val_point_calibration_error_uniform_mass",
+        #            dic["point_calibration_error_uniform_mass"].item(),
+        #        )
+        #        setattr(
+        #            self, "val_point_calibration_error", dic["point_calibration_error"].item()
+        #        )
+        #        setattr(self, "val_true_vs_pred_loss", dic["true_vs_pred_loss"].item())
         return dic
 
     def test_epoch_end(self, outputs):
@@ -141,7 +141,7 @@ def output_distribution_single_layer(dist, r):
     y = torch.linspace(RANGE[0], RANGE[1], RESOLUTION)
     if "Flexible" not in dist.__class__.__name__:
         n_dist = dist.params[0].shape[0]
-        
+
         for i in range(n_dist):
             params = dist.params
             sub_params = tuple([params[j][[i]] for j in range(len(params))])

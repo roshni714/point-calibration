@@ -6,6 +6,7 @@ from losses import GaussianNLL
 from distributions import GaussianDistribution
 from modules.cnn import CNN
 
+
 class GaussianNLLModel(LightningModule):
     def __init__(self, input_size, y_scale, resnet=False):
         super().__init__()
@@ -19,10 +20,12 @@ class GaussianNLLModel(LightningModule):
                 torch.nn.Linear(100, 2),
             )
         else:
-#            self.layers = CNN(n_output=2)
+            #            self.layers = CNN(n_output=2)
             self.layers = models.resnet18()
             self.layers.fc = torch.nn.Linear(512, 2)
-            self.layers.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+            self.layers.conv1 = torch.nn.Conv2d(
+                1, 64, kernel_size=7, stride=2, padding=3, bias=False
+            )
         self.loss = GaussianNLL()
         self.y_scale = y_scale
 

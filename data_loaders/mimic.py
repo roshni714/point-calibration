@@ -7,22 +7,53 @@ import torch
 import os
 
 
-
 def _load_mimic_los():
     df = pd.read_excel("data_loaders/data/mimic/mimic_050221.xlsx")
     df2 = pd.read_excel("data_loaders/data/mimic/mimic_050221_2.xlsx")
     total_df = pd.concat([df, df2])
-    impute_vals = {"cap_refill":0.,"bp_diastolic":59., "fio2":0.21, "gcs_eye":4, "gcs_motor":6, "gcs_total":15,
-                   "gcs_verbal":5, "glucose":128., "heart_rate": 86., "height_cm":170, "bp_mean": 77., "o2sat": 98., 
-                   "resp_rate":19, "bp_systolic": 118., "temp_fahren":97.88, "weight_lbs":81., "ph":7.4}
+    impute_vals = {
+        "cap_refill": 0.0,
+        "bp_diastolic": 59.0,
+        "fio2": 0.21,
+        "gcs_eye": 4,
+        "gcs_motor": 6,
+        "gcs_total": 15,
+        "gcs_verbal": 5,
+        "glucose": 128.0,
+        "heart_rate": 86.0,
+        "height_cm": 170,
+        "bp_mean": 77.0,
+        "o2sat": 98.0,
+        "resp_rate": 19,
+        "bp_systolic": 118.0,
+        "temp_fahren": 97.88,
+        "weight_lbs": 81.0,
+        "ph": 7.4,
+    }
 
     total_df = total_df.fillna(impute_vals)
 
-    features = ['cap_refill', 'bp_diastolic', 'bp_systolic', 'bp_mean', 'fio2',
-               'gcs_eye', 'gcs_verbal', 'gcs_motor', 'gcs_total', 'glucose',
-               'heart_rate', 'height_cm', 'o2sat', 'resp_rate', 'temp_fahren',
-               'weight_lbs', 'ph']
+    features = [
+        "cap_refill",
+        "bp_diastolic",
+        "bp_systolic",
+        "bp_mean",
+        "fio2",
+        "gcs_eye",
+        "gcs_verbal",
+        "gcs_motor",
+        "gcs_total",
+        "glucose",
+        "heart_rate",
+        "height_cm",
+        "o2sat",
+        "resp_rate",
+        "temp_fahren",
+        "weight_lbs",
+        "ph",
+    ]
     return total_df[features].to_numpy(), total_df["los"].to_numpy()
+
 
 def get_mimic_datasets(
     name, split_seed=0, test_fraction=0.10, train_frac=1.0, combine_val_train=False
@@ -44,8 +75,7 @@ def get_mimic_datasets(
         y_train_scale (float): standard deviation of training labels
     """
     # load full dataset
-    load_funs = {"mimic_los": _load_mimic_los
-    }
+    load_funs = {"mimic_los": _load_mimic_los}
 
     print("Loading dataset {}....".format(name))
 
@@ -174,5 +204,3 @@ def get_mimic_dataloaders(
         train, val, test, batch_size
     )
     return train_loader, val_loader, test_loader, in_size, target_size, y_train_scale
-
-

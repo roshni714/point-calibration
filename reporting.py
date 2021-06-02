@@ -12,7 +12,9 @@ def write_result(results_file, result):
         dict_writer.writerow(result)
 
 
-def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
+def report_baseline_results(
+    model, dataset, train_frac, loss_name, seed, save, save_dir="results"
+):
     result = {
         "dataset": dataset,
         "rmse": getattr(model, "rmse", 0),
@@ -22,7 +24,7 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
         "threshold_calibration_error": getattr(model, "threshold_calibration_error", 0),
-#        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
+        #        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
         "point_calibration_error_uniform_mass": getattr(
             model, "point_calibration_error_uniform_mass", 0
@@ -37,7 +39,7 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
         #              "learning_rate": learning_rate,
         "seed": seed,
     }
-    results_file = "results/" + save + ".csv"
+    results_file = save_dir + "/" + save + ".csv"
     write_result(results_file, result)
 
     all_err = getattr(model, "all_err", [])
@@ -46,7 +48,10 @@ def report_baseline_results(model, dataset, train_frac, loss_name, seed, save):
     all_c = getattr(model, "all_c", [])
 
     decision_making_results_file = (
-        "results/" + save + "_decision_{}_{}_{}.csv".format(dataset, loss_name, seed)
+        save_dir
+        + "/"
+        + save
+        + "_decision_{}_{}_{}.csv".format(dataset, loss_name, seed)
     )
     for i in range(len(all_err)):
         decision_making_dic = {}
@@ -66,8 +71,9 @@ def report_recalibration_results(
     posthoc_recalibration,
     recalibration_parameters,
     save,
+    save_dir="results",
 ):
-    results_file = "results/" + save + ".csv"
+    results_file = save_dir + "/" + save + ".csv"
     result = {
         "dataset": dataset,
         "rmse": getattr(model, "rmse", 0),
@@ -76,11 +82,22 @@ def report_recalibration_results(
         #              "stddev": getattr(model, "sharpness", 0),
         #              "point_unbiasedness_max": getattr(model, "point_unbiasedness_max", 0),
         #              "point_unbiasedness_mean": getattr(model, "point_unbiasedness_mean", 0),
-        "threshold_calibration_error_less": getattr(model, "threshold_calibration_error_less", 0),
-        "threshold_calibration_error_greater": getattr(model, "threshold_calibration_error_greater", 0),
-        "threshold_calibration_error_both": getattr(model, "threshold_calibration_error_both", 0),
+        "threshold_calibration_error_less": getattr(
+            model, "threshold_calibration_error_less", 0
+        ),
+        "threshold_calibration_error_greater": getattr(
+            model, "threshold_calibration_error_greater", 0
+        ),
+        "threshold_calibration_error_both": getattr(
+            model, "threshold_calibration_error_both", 0
+        ),
+        "threshold_calibration_error_all": getattr(
+            model, "threshold_calibration_error_all", 0
+        ),
         "point_calibration_error": getattr(model, "point_calibration_error", 0),
-        "distribution_calibration_error": getattr(model, "distribution_calibration_error", 0),
+        "distribution_calibration_error": getattr(
+            model, "distribution_calibration_error", 0
+        ),
         "point_calibration_error_uniform_mass": getattr(
             model, "point_calibration_error_uniform_mass", 0
         ),
@@ -119,10 +136,16 @@ def report_recalibration_results(
         recalibration_parameters = {}
 
     decision_making_results_file = (
-        "results/"
+        save_dir
+        + "/"
         + save
         + "_decision_{}_{}_{}_{}_{}_{}.csv".format(
-            dataset, loss_name, posthoc_recalibration, recalibration_parameters.get("n_bins", 1), recalibration_parameters.get("num_layers", 0), seed
+            dataset,
+            loss_name,
+            posthoc_recalibration,
+            recalibration_parameters.get("n_bins", 1),
+            recalibration_parameters.get("num_layers", 0),
+            seed,
         )
     )
 
