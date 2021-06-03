@@ -7,7 +7,8 @@ This is a repository for reproducing the experiments from Reliable Decisions wit
 We provide the commands to reproduce the UCI regression experiments from the paper. Commands for training the baseline UCI models can be found in `baseline_model_training` and commands for the recalibration experiments can be found in `recalibration_exp`. To run all the UCI experiments, follow the commands to setup the environments, download the appropriate datasets, create a results folder, and run the experiments.
 
 ```bash
-conda env create -f point-calibration/environment.yml
+cd reliable-decisions-threshold-calibration
+conda env create -f environment.yml
 conda activate calibration
 python download_datasets.py
 chmod +x run_experiments.sh
